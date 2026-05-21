@@ -20,13 +20,17 @@ function CustomerHomePage() {
   const [filters, setFilters] = useState(defaultFilters);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
+      setError("Geolocation is not supported by this browser.");
       return;
     }
 
+    setLocating(true);
+    setError("");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setFilters((current) => ({
@@ -34,10 +38,14 @@ function CustomerHomePage() {
           latitude: position.coords.latitude.toFixed(4),
           longitude: position.coords.longitude.toFixed(4),
         }));
+        setLocating(false);
       },
-      () => {}
+      () => {
+        setError("Unable to access your current location.");
+        setLocating(false);
+      }
     );
-  }, []);
+  };
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -93,6 +101,14 @@ function CustomerHomePage() {
               className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-emerald-50 focus:outline-none"
             />
           </div>
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={locating}
+            className="rounded-2xl border border-white/30 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {locating ? "Finding location..." : "Use Current Location"}
+          </button>
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               type="text"

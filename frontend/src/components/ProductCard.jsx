@@ -24,10 +24,12 @@ function ProductCard({ product }) {
           <img
             src={`http://localhost:5000${product.image}`}
             alt={product.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain p-2"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-5xl">🥬</div>
+          <div className="flex h-full items-center justify-center text-sm font-semibold text-emerald-700">
+            No image
+          </div>
         )}
       </div>
 
@@ -43,7 +45,7 @@ function ProductCard({ product }) {
         </div>
 
         <p className="text-sm text-slate-600">
-          Farmer: {product.farmer?.storeName || "Local Farm"} · Stock: {product.quantity}
+          Farmer: {product.farmer?.storeName || "Local Farm"} - Stock: {product.quantity}
         </p>
 
         {product.distanceInKm !== undefined && (

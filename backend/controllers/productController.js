@@ -14,6 +14,18 @@ const buildCoordinates = (latitude, longitude) => {
   return [lng, lat];
 };
 
+const parseBoolean = (value) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.toLowerCase() === "true";
+  }
+
+  return Boolean(value);
+};
+
 const addProduct = asyncHandler(async (req, res) => {
   const { name, price, quantity, category, image, latitude, longitude } = req.body;
 
@@ -92,7 +104,7 @@ const updateProduct = asyncHandler(async (req, res) => {
   product.quantity = quantity !== undefined ? Number(quantity) : product.quantity;
   product.category = category ?? product.category;
   product.image = req.file ? `/uploads/${req.file.filename}` : image ?? product.image;
-  product.isActive = req.body.isActive !== undefined ? Boolean(req.body.isActive) : product.isActive;
+  product.isActive = req.body.isActive !== undefined ? parseBoolean(req.body.isActive) : product.isActive;
 
   const updatedProduct = await product.save();
 
@@ -142,8 +154,10 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
   const radiusInKm = Number(radius);
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Math.max(Number(limit) || 10, 1), 100);
-  const minPriceValue = minPrice !== undefined ? Number(minPrice) : undefined;
-  const maxPriceValue = maxPrice !== undefined ? Number(maxPrice) : undefined;
+  const hasMinPrice = minPrice !== undefined && minPrice !== "";
+  const hasMaxPrice = maxPrice !== undefined && maxPrice !== "";
+  const minPriceValue = hasMinPrice ? Number(minPrice) : undefined;
+  const maxPriceValue = hasMaxPrice ? Number(maxPrice) : undefined;
 
   if (Number.isNaN(radiusInKm)) {
     res.status(400);
@@ -158,7 +172,7 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
     matchStage.category = new RegExp(`^${category}$`, "i");
   }
 
-  if (minPrice !== undefined || maxPrice !== undefined) {
+  if (hasMinPrice || hasMaxPrice) {
     matchStage.price = {};
     if (!Number.isNaN(minPriceValue)) {
       matchStage.price.$gte = minPriceValue;
@@ -263,10 +277,22 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
 
 const getProducts = asyncHandler(async (req, res) => getNearbyProducts(req, res));
 
+const getMyProducts = asyncHandler(async (req, res) => {
+  const products = await Product.find({ farmer: req.user._id })
+    .populate("farmer", "storeName phone email averageRating")
+    .sort({ createdAt: -1 });
+
+  res.json({
+    total: products.length,
+    products,
+  });
+});
+
 module.exports = {
   addProduct,
   updateProduct,
   deleteProduct,
   getProducts,
   getNearbyProducts,
+  getMyProducts,
 };
