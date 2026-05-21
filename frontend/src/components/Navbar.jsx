@@ -2,6 +2,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import NotificationBell from "./NotificationBell";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -39,6 +40,12 @@ function Navbar() {
               >
                 Orders
               </NavLink>
+              <NavLink
+                to="/group-orders"
+                className="rounded-full px-3 py-2 hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                Group Orders
+              </NavLink>
             </>
           )}
 
@@ -64,6 +71,17 @@ function Navbar() {
               </NavLink>
             </>
           )}
+
+          {user?.role === "admin" && (
+            <NavLink
+              to="/admin"
+              className="rounded-full px-3 py-2 hover:bg-emerald-50 hover:text-emerald-700"
+            >
+              Admin
+            </NavLink>
+          )}
+
+          <NotificationBell />
 
           {!isAuthenticated ? (
             <>

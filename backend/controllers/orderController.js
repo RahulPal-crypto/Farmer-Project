@@ -2,16 +2,20 @@ const mongoose = require("mongoose");
 
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const Review = require("../models/Review");
 const asyncHandler = require("../middleware/asyncHandler");
 const { createNotification } = require("../utils/notificationHelper");
 const { emitToUser } = require("../socket");
 
-const createOrder = asyncHandler(async (req, res) => {
-  const { items } = req.body;
+const createError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
 
+const createOrderFromItems = async ({ items, customerId, paymentStatus = "pending", paymentMethod = "cod", paymentId = null }) => {
   if (!Array.isArray(items) || items.length === 0) {
-    res.status(400);
-    throw new Error("Order items are required");
+    throw createError(400, "Order items are required");
   }
 
   const normalizedItems = [];
@@ -21,39 +25,33 @@ const createOrder = asyncHandler(async (req, res) => {
 
   for (const item of items) {
     if (!item.productId || !item.quantity) {
-      res.status(400);
-      throw new Error("Each item must include productId and quantity");
+      throw createError(400, "Each item must include productId and quantity");
     }
 
     if (!mongoose.Types.ObjectId.isValid(item.productId)) {
-      res.status(400);
-      throw new Error("Invalid product id found in order items");
+      throw createError(400, "Invalid product id found in order items");
     }
 
     const product = await Product.findById(item.productId);
 
     if (!product) {
-      res.status(404);
-      throw new Error("One of the selected products was not found");
+      throw createError(404, "One of the selected products was not found");
     }
 
     const requestedQuantity = Number(item.quantity);
 
     if (Number.isNaN(requestedQuantity) || requestedQuantity <= 0) {
-      res.status(400);
-      throw new Error("Item quantity must be a positive number");
+      throw createError(400, "Item quantity must be a positive number");
     }
 
     if (product.quantity < requestedQuantity) {
-      res.status(400);
-      throw new Error(`Insufficient quantity for product: ${product.name}`);
+      throw createError(400, `Insufficient quantity for product: ${product.name}`);
     }
 
     if (!farmerId) {
       farmerId = product.farmer.toString();
     } else if (farmerId !== product.farmer.toString()) {
-      res.status(400);
-      throw new Error("All ordered products must belong to the same farmer");
+      throw createError(400, "All ordered products must belong to the same farmer");
     }
 
     normalizedItems.push({
@@ -73,18 +71,34 @@ const createOrder = asyncHandler(async (req, res) => {
   }
 
   const order = await Order.create({
-    customer: req.user._id,
+    customer: customerId,
     farmer: farmerId,
     items: normalizedItems,
     totalPrice,
     status: "pending",
+    paymentStatus,
+    paymentMethod,
+    payment: paymentId,
+  });
+
+  return {
+    order,
+    farmerId,
+    itemCount: normalizedItems.length,
+  };
+};
+
+const createOrder = asyncHandler(async (req, res) => {
+  const { order, farmerId, itemCount } = await createOrderFromItems({
+    items: req.body.items,
+    customerId: req.user._id,
   });
 
   const farmerNotification = await createNotification({
     user: farmerId,
     type: "order",
     title: "New order placed",
-    message: `You received a new order with ${normalizedItems.length} item(s).`,
+    message: `You received a new order with ${itemCount} item(s).`,
     metadata: {
       orderId: order._id,
       customerId: req.user._id,
@@ -155,10 +169,17 @@ const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customer: req.user._id })
     .populate("farmer", "storeName email phone")
     .sort({ createdAt: -1 });
+  const reviewedOrders = await Review.find({ customer: req.user._id }).select("order");
+  const reviewedOrderIds = new Set(reviewedOrders.map((review) => review.order.toString()));
+  const ordersWithReviewState = orders.map((order) => {
+    const orderObject = order.toObject();
+    orderObject.hasReview = reviewedOrderIds.has(order._id.toString());
+    return orderObject;
+  });
 
   res.json({
-    total: orders.length,
-    orders,
+    total: ordersWithReviewState.length,
+    orders: ordersWithReviewState,
   });
 });
 
@@ -175,6 +196,7 @@ const getReceivedOrders = asyncHandler(async (req, res) => {
 
 module.exports = {
   createOrder,
+  createOrderFromItems,
   getMyOrders,
   getReceivedOrders,
   updateOrderStatus,
