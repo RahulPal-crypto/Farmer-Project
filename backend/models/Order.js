@@ -73,6 +73,21 @@ const orderSchema = new mongoose.Schema(
       ref: "GroupOrder",
       default: null,
     },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["cod", "razorpay"],
+      default: "cod",
+    },
+    payment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -3,11 +3,28 @@ import { useNavigate } from "react-router-dom";
 
 import ErrorAlert from "../../components/ErrorAlert";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 import { getApiErrorMessage } from "../../services/api";
-import { createOrder } from "../../services/orderService";
+import { createRazorpayOrder, verifyRazorpayPayment } from "../../services/paymentService";
+
+const loadRazorpayCheckout = () => {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error("Unable to load Razorpay checkout"));
+    document.body.appendChild(script);
+  });
+};
 
 function CheckoutPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { items, subtotal, clearCart } = useCart();
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState("");
@@ -17,18 +34,56 @@ function CheckoutPage() {
       setPlacingOrder(true);
       setError("");
 
-      await createOrder({
-        items: items.map((item) => ({
-          productId: item._id,
-          quantity: item.cartQuantity,
-        })),
-      });
+      await loadRazorpayCheckout();
 
-      clearCart();
-      navigate("/orders");
+      const orderItems = items.map((item) => ({
+        productId: item._id,
+        quantity: item.cartQuantity,
+      }));
+
+      const paymentOrder = await createRazorpayOrder({ items: orderItems });
+
+      const options = {
+        key: paymentOrder.keyId,
+        amount: paymentOrder.amount,
+        currency: paymentOrder.currency,
+        name: "Farmer Market",
+        description: "Fresh produce order",
+        order_id: paymentOrder.razorpayOrderId,
+        prefill: {
+          name: user?.storeName || "",
+          email: user?.email || "",
+          contact: user?.phone || "",
+        },
+        theme: {
+          color: "#059669",
+        },
+        handler: async (response) => {
+          try {
+            await verifyRazorpayPayment(response);
+            clearCart();
+            navigate("/orders");
+          } catch (error) {
+            setError(getApiErrorMessage(error, "Payment verification failed"));
+          } finally {
+            setPlacingOrder(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setPlacingOrder(false);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on("payment.failed", (response) => {
+        setError(response?.error?.description || "Payment failed. Please try again.");
+        setPlacingOrder(false);
+      });
+      razorpay.open();
     } catch (error) {
-      setError(getApiErrorMessage(error, "Unable to place order"));
-    } finally {
+      setError(getApiErrorMessage(error, error.message || "Unable to start payment"));
       setPlacingOrder(false);
     }
   };
@@ -67,7 +122,7 @@ function CheckoutPage() {
           disabled={placingOrder || items.length === 0}
           className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
         >
-          {placingOrder ? "Placing order..." : "Place Order"}
+          {placingOrder ? "Opening payment..." : "Pay Now"}
         </button>
       </div>
     </div>
