@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import EmptyState from "../../components/EmptyState";
 import ErrorAlert from "../../components/ErrorAlert";
@@ -81,6 +82,12 @@ function FarmerOrdersPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
+              <Link
+                to={`/chat/${order._id}`}
+                className="rounded-2xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+              >
+                Chat
+              </Link>
               {["accepted", "rejected", "delivered"].map((status) => (
                 <button
                   key={status}
