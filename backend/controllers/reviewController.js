@@ -64,6 +64,13 @@ const addReview = asyncHandler(async (req, res) => {
     throw new Error("Review can only be added after delivery");
   }
 
+  const existingReview = await Review.findOne({ order: order._id });
+
+  if (existingReview) {
+    res.status(409);
+    throw new Error("This order has already been reviewed");
+  }
+
   const review = await Review.create({
     customer: req.user._id,
     farmer: order.farmer,
