@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
 import PrivateRoute from "./PrivateRoute";
+import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AddProductPage from "../pages/farmer/AddProductPage";
 import FarmerDashboardPage from "../pages/farmer/FarmerDashboardPage";
 import FarmerOrdersPage from "../pages/farmer/FarmerOrdersPage";
@@ -9,9 +10,11 @@ import MyProductsPage from "../pages/farmer/MyProductsPage";
 import CartPage from "../pages/customer/CartPage";
 import CheckoutPage from "../pages/customer/CheckoutPage";
 import CustomerHomePage from "../pages/customer/CustomerHomePage";
+import GroupOrdersPage from "../pages/customer/GroupOrdersPage";
 import OrdersPage from "../pages/customer/OrdersPage";
 import LoginPage from "../pages/auth/LoginPage";
 import SignupPage from "../pages/auth/SignupPage";
+import ChatPage from "../pages/shared/ChatPage";
 
 function AppRoutes() {
   return (
@@ -27,6 +30,7 @@ function AppRoutes() {
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/group-orders" element={<GroupOrdersPage />} />
           </Route>
 
           <Route element={<PrivateRoute allowedRoles={["farmer"]} />}>
@@ -34,6 +38,14 @@ function AppRoutes() {
             <Route path="/farmer/add-product" element={<AddProductPage />} />
             <Route path="/farmer/products" element={<MyProductsPage />} />
             <Route path="/farmer/orders" element={<FarmerOrdersPage />} />
+          </Route>
+
+          <Route element={<PrivateRoute allowedRoles={["customer", "farmer"]} />}>
+            <Route path="/chat/:orderId" element={<ChatPage />} />
+          </Route>
+
+          <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
+            <Route path="/admin" element={<AdminDashboardPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
