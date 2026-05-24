@@ -19,9 +19,14 @@ const emitToUser = (userId, eventName, payload) => {
 };
 
 const initSocket = (server) => {
+  const allowedOrigins = (process.env.CLIENT_URL || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   ioInstance = new Server(server, {
     cors: {
-      origin: "*",
+      origin: allowedOrigins.length ? allowedOrigins : "*",
     },
   });
 
