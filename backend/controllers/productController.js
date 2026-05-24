@@ -27,6 +27,38 @@ const parseBoolean = (value) => {
   return Boolean(value);
 };
 
+const getPublicBaseUrl = (req) => {
+  const configuredUrl = process.env.API_PUBLIC_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, "");
+  }
+
+  return `${req.protocol}://${req.get("host")}`;
+};
+
+const buildImageUrl = (image, req) => {
+  if (!image) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(image)) {
+    return image;
+  }
+
+  const normalizedPath = image.startsWith("/") ? image : `/${image}`;
+  return `${getPublicBaseUrl(req)}${normalizedPath}`;
+};
+
+const attachImageUrl = (product, req) => {
+  const plainProduct = typeof product.toObject === "function" ? product.toObject() : product;
+
+  return {
+    ...plainProduct,
+    imageUrl: buildImageUrl(plainProduct.image, req),
+  };
+};
+
 const addProduct = asyncHandler(async (req, res) => {
   const { name, price, quantity, category, image, latitude, longitude } = req.body;
 
@@ -62,7 +94,7 @@ const addProduct = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     message: "Product added successfully",
-    product,
+    product: attachImageUrl(product, req),
   });
 });
 
@@ -113,7 +145,7 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   res.json({
     message: "Product updated successfully",
-    product: updatedProduct,
+    product: attachImageUrl(updatedProduct, req),
   });
 });
 
@@ -248,7 +280,7 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
     ]);
 
     const metadata = result[0]?.metadata?.[0] || { total: 0 };
-    const products = result[0]?.data || [];
+    const products = (result[0]?.data || []).map((product) => attachImageUrl(product, req));
 
     res.json({
       message: "Nearby products fetched successfully",
@@ -274,7 +306,7 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
     limit: pageSize,
     total,
     totalPages: Math.ceil(total / pageSize),
-    products,
+    products: products.map((product) => attachImageUrl(product, req)),
   });
 });
 
@@ -287,7 +319,7 @@ const getMyProducts = asyncHandler(async (req, res) => {
 
   res.json({
     total: products.length,
-    products,
+    products: products.map((product) => attachImageUrl(product, req)),
   });
 });
 

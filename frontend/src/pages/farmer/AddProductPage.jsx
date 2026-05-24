@@ -3,20 +3,22 @@ import { useState } from "react";
 import ErrorAlert from "../../components/ErrorAlert";
 import { getApiErrorMessage } from "../../services/api";
 import { addProduct } from "../../services/productService";
+import { DEFAULT_LOCATION, getCurrentCoordinates } from "../../utils/location";
 
 const initialForm = {
   name: "",
   price: "",
   quantity: "",
   category: "",
-  latitude: "28.6139",
-  longitude: "77.2090",
+  latitude: DEFAULT_LOCATION.latitude,
+  longitude: DEFAULT_LOCATION.longitude,
 };
 
 function AddProductPage() {
   const [formData, setFormData] = useState(initialForm);
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -54,6 +56,23 @@ function AddProductPage() {
       setError(getApiErrorMessage(error, "Unable to add product"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLocationLoading(true);
+      setError("");
+      setSuccess("");
+      const coordinates = await getCurrentCoordinates();
+      setFormData((current) => ({
+        ...current,
+        ...coordinates,
+      }));
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -132,6 +151,15 @@ function AddProductPage() {
             className="rounded-2xl border border-slate-200 px-4 py-3"
           />
         </div>
+
+        <button
+          type="button"
+          onClick={handleUseCurrentLocation}
+          disabled={locationLoading}
+          className="w-full rounded-2xl border border-emerald-200 px-4 py-3 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {locationLoading ? "Finding location..." : "Use Current Location"}
+        </button>
 
         <input
           type="file"

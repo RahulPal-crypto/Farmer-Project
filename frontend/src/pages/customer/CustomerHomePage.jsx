@@ -6,10 +6,11 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import ProductCard from "../../components/ProductCard";
 import { getApiErrorMessage } from "../../services/api";
 import { fetchProducts } from "../../services/productService";
+import { DEFAULT_LOCATION, getCurrentCoordinates } from "../../utils/location";
 
 const defaultFilters = {
-  latitude: "28.6139",
-  longitude: "77.2090",
+  latitude: DEFAULT_LOCATION.latitude,
+  longitude: DEFAULT_LOCATION.longitude,
   radius: "20",
   category: "",
   minPrice: "",
@@ -23,28 +24,20 @@ function CustomerHomePage() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
 
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setError("Geolocation is not supported by this browser.");
-      return;
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLocating(true);
+      setError("");
+      const coordinates = await getCurrentCoordinates();
+      setFilters((current) => ({
+        ...current,
+        ...coordinates,
+      }));
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLocating(false);
     }
-
-    setLocating(true);
-    setError("");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setFilters((current) => ({
-          ...current,
-          latitude: position.coords.latitude.toFixed(4),
-          longitude: position.coords.longitude.toFixed(4),
-        }));
-        setLocating(false);
-      },
-      () => {
-        setError("Unable to access your current location.");
-        setLocating(false);
-      }
-    );
   };
 
   useEffect(() => {

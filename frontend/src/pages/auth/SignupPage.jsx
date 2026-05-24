@@ -3,18 +3,21 @@ import { Link, useNavigate } from "react-router-dom";
 
 import ErrorAlert from "../../components/ErrorAlert";
 import { useAuth } from "../../context/AuthContext";
+import { DEFAULT_LOCATION, getCurrentCoordinates } from "../../utils/location";
 
 function SignupPage() {
   const navigate = useNavigate();
   const { signup, loading, error, clearAuthError } = useAuth();
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const [formData, setFormData] = useState({
     storeName: "",
     email: "",
     password: "",
     role: "customer",
     phone: "",
-    latitude: "28.6139",
-    longitude: "77.2090",
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
   });
 
   const handleChange = (event) => {
@@ -34,6 +37,22 @@ function SignupPage() {
     } catch (error) {}
   };
 
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLocationLoading(true);
+      setLocationError("");
+      const coordinates = await getCurrentCoordinates();
+      setFormData((current) => ({
+        ...current,
+        ...coordinates,
+      }));
+    } catch (error) {
+      setLocationError(error.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl rounded-[2rem] bg-white p-6 shadow-xl md:p-10">
       <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr]">
@@ -47,6 +66,7 @@ function SignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <ErrorAlert message={error} />
+          <ErrorAlert message={locationError} />
 
           <input
             type="text"
@@ -115,6 +135,15 @@ function SignupPage() {
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-emerald-500 focus:outline-none"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={locationLoading}
+            className="w-full rounded-2xl border border-emerald-200 px-4 py-3 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {locationLoading ? "Finding location..." : "Use Current Location"}
+          </button>
 
           <button
             type="submit"

@@ -11,6 +11,7 @@ NODE_ENV=production
 MONGO_URI=your-mongodb-atlas-uri
 JWT_SECRET=use-a-long-random-secret
 CLIENT_URL=https://your-frontend-domain.com
+API_PUBLIC_URL=https://your-backend-domain.com
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret

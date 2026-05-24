@@ -8,6 +8,7 @@ function ProductCard({ product }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart } = useCart();
+  const imageUrl = product.imageUrl || getAssetUrl(product.image);
 
   const handleAddToCart = () => {
     if (user?.role !== "customer") {
@@ -21,9 +22,9 @@ function ProductCard({ product }) {
   return (
     <article className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
       <div className="h-48 bg-gradient-to-br from-emerald-100 via-lime-50 to-amber-50">
-        {product.image ? (
+        {imageUrl ? (
           <img
-            src={getAssetUrl(product.image)}
+            src={imageUrl}
             alt={product.name}
             className="h-full w-full object-contain p-2"
           />
