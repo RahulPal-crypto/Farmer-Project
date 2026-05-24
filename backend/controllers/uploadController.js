@@ -1,5 +1,5 @@
-const path = require("path");
 const asyncHandler = require("../middleware/asyncHandler");
+const { storeUploadedImage } = require("../utils/imageStorage");
 
 const uploadImage = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -7,8 +7,7 @@ const uploadImage = asyncHandler(async (req, res) => {
     throw new Error("Image file is required");
   }
 
-  // Local storage works out of the box; swap with Cloudinary in production if needed.
-  const imageUrl = `/uploads/${path.basename(req.file.path)}`;
+  const imageUrl = await storeUploadedImage(req.file);
 
   res.status(201).json({
     message: "Image uploaded successfully",

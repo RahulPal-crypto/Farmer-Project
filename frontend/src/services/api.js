@@ -1,8 +1,37 @@
 import axios from "axios";
 
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_API_URL?.trim() ||
   (import.meta.env.DEV ? "http://localhost:5000/api" : "/api");
+
+const removeTrailingSlash = (value) => value.replace(/\/+$/, "");
+
+export const getBackendBaseUrl = () => {
+  const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const url = new URL(API_BASE_URL, fallbackOrigin || "http://localhost");
+
+  if (url.pathname === "/api" || url.pathname.endsWith("/api/")) {
+    url.pathname = url.pathname.replace(/\/api\/?$/, "");
+  }
+
+  url.search = "";
+  url.hash = "";
+
+  return removeTrailingSlash(url.toString());
+};
+
+export const getAssetUrl = (assetPath) => {
+  if (!assetPath) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(assetPath)) {
+    return assetPath;
+  }
+
+  const normalizedPath = assetPath.startsWith("/") ? assetPath : `/${assetPath}`;
+  return `${getBackendBaseUrl()}${normalizedPath}`;
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,

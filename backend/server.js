@@ -4,6 +4,8 @@ const path = require("path");
 const cors = require("cors");
 const dotenv = require("dotenv");
 
+dotenv.config();
+
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
@@ -18,7 +20,25 @@ const uploadRoutes = require("./routes/upload");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const { initSocket } = require("./socket");
 
-dotenv.config();
+const requireEnv = (names) => {
+  const missing = names.filter((name) => !process.env[name]);
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+};
+
+requireEnv(["MONGO_URI", "JWT_SECRET"]);
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET)
+) {
+  console.warn("Cloudinary is not configured. Uploaded images may not persist after redeploys.");
+}
+
 connectDB();
 
 const app = express();
@@ -27,7 +47,7 @@ initSocket(server);
 
 const allowedOrigins = (process.env.CLIENT_URL || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
 const corsOptions = allowedOrigins.length
@@ -51,6 +71,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/", (req, res) => {
   res.json({
     message: "Farmer-to-Customer Marketplace API is running",
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    environment: process.env.NODE_ENV || "development",
   });
 });
 

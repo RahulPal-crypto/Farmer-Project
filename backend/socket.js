@@ -21,7 +21,7 @@ const emitToUser = (userId, eventName, payload) => {
 const initSocket = (server) => {
   const allowedOrigins = (process.env.CLIENT_URL || "")
     .split(",")
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
     .filter(Boolean);
 
   ioInstance = new Server(server, {

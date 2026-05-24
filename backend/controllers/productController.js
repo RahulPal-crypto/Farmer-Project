@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const Product = require("../models/Product");
 const asyncHandler = require("../middleware/asyncHandler");
+const { storeUploadedImage } = require("../utils/imageStorage");
 
 const buildCoordinates = (latitude, longitude) => {
   const lat = Number(latitude);
@@ -44,13 +45,15 @@ const addProduct = asyncHandler(async (req, res) => {
     throw new Error("Valid product latitude and longitude are required");
   }
 
+  const imageUrl = req.file ? await storeUploadedImage(req.file) : image || "";
+
   const product = await Product.create({
     farmer: req.user._id,
     name,
     price: Number(price),
     quantity: Number(quantity),
     category,
-    image: req.file ? `/uploads/${req.file.filename}` : image || "",
+    image: imageUrl,
     location: {
       type: "Point",
       coordinates,
@@ -103,7 +106,7 @@ const updateProduct = asyncHandler(async (req, res) => {
   product.price = price !== undefined ? Number(price) : product.price;
   product.quantity = quantity !== undefined ? Number(quantity) : product.quantity;
   product.category = category ?? product.category;
-  product.image = req.file ? `/uploads/${req.file.filename}` : image ?? product.image;
+  product.image = req.file ? await storeUploadedImage(req.file) : image ?? product.image;
   product.isActive = req.body.isActive !== undefined ? parseBoolean(req.body.isActive) : product.isActive;
 
   const updatedProduct = await product.save();

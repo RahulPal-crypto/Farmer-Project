@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { getAssetUrl } from "../services/api";
 
 function ProductCard({ product }) {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ function ProductCard({ product }) {
       <div className="h-48 bg-gradient-to-br from-emerald-100 via-lime-50 to-amber-50">
         {product.image ? (
           <img
-            src={`http://localhost:5000${product.image}`}
+            src={getAssetUrl(product.image)}
             alt={product.name}
             className="h-full w-full object-contain p-2"
           />

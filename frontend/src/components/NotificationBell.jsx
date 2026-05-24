@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 
 import { useAuth } from "../context/AuthContext";
+import { getBackendBaseUrl } from "../services/api";
 import { fetchNotifications, markNotificationRead } from "../services/notificationService";
 
 const getNotificationTarget = (notification, user) => {
@@ -59,7 +60,7 @@ function NotificationBell() {
       return undefined;
     }
 
-    const socket = io("http://localhost:5000", {
+    const socket = io(getBackendBaseUrl(), {
       auth: { token },
     });
 

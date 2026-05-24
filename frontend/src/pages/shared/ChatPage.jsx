@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
-import { getApiErrorMessage } from "../../services/api";
+import { getApiErrorMessage, getBackendBaseUrl } from "../../services/api";
 import { fetchChatHistory } from "../../services/chatService";
 
 function ChatPage() {
@@ -39,7 +39,7 @@ function ChatPage() {
       return undefined;
     }
 
-    const socket = io("http://localhost:5000", {
+    const socket = io(getBackendBaseUrl(), {
       auth: { token },
     });
 
