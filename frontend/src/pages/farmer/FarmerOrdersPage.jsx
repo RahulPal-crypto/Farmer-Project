@@ -7,6 +7,18 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import api, { getApiErrorMessage } from "../../services/api";
 import { updateOrderStatus } from "../../services/orderService";
 
+const formatOrderDate = (value) => {
+  if (!value) {
+    return "Not available";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
 function FarmerOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,9 +60,9 @@ function FarmerOrdersPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Orders Received</h1>
-        <p className="mt-2 text-sm text-slate-500">Accept, reject, and deliver orders from customers.</p>
+      <div className="rounded-3xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-black text-slate-900">Order Management</h1>
+        <p className="mt-2 text-sm text-slate-500">Accept, reject, deliver, and chat with customers from one queue.</p>
       </div>
 
       <ErrorAlert message={error} />
@@ -59,7 +71,7 @@ function FarmerOrdersPage() {
         <EmptyState title="No incoming orders" description="New customer orders will appear here." />
       ) : (
         orders.map((order) => (
-          <article key={order._id} className="rounded-3xl bg-white p-6 shadow-sm">
+          <article key={order._id} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-slate-500">Customer</p>
@@ -79,6 +91,23 @@ function FarmerOrdersPage() {
                   <span>Rs. {(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-slate-50 p-3">
+                <p className="text-xs font-bold text-slate-500">Items</p>
+                <p className="text-lg font-black text-slate-900">{order.items.length}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-3">
+                <p className="text-xs font-bold text-slate-500">Total</p>
+                <p className="text-lg font-black text-slate-900">
+                  Rs. {Number(order.discountedTotalPrice || order.totalPrice || 0).toFixed(0)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-3">
+                <p className="text-xs font-bold text-slate-500">Placed On</p>
+                <p className="text-lg font-black text-emerald-700">{formatOrderDate(order.createdAt)}</p>
+              </div>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">

@@ -54,6 +54,12 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    commodityKey: {
+      type: String,
+      default: null,
+      index: true,
+      enum: [null, "tomato", "potato", "onion", "wheat", "rice"],
+    },
   },
   {
     timestamps: true,

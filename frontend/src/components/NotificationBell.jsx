@@ -102,7 +102,7 @@ function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="relative rounded-full px-3 py-2 hover:bg-emerald-50 hover:text-emerald-700"
+        className="relative rounded-full px-3 py-2 font-bold hover:bg-emerald-50 hover:text-emerald-700"
       >
         Alerts
         {unreadCount > 0 && (
@@ -113,7 +113,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-30 w-80 rounded-3xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute right-0 top-11 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-3xl border border-slate-200 bg-white p-3 shadow-xl">
           <div className="px-2 pb-2">
             <p className="font-semibold text-slate-900">Notifications</p>
           </div>

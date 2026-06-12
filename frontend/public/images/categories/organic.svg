@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Organic produce">
+  <rect width="640" height="420" fill="#e9f7ed"/>
+  <path d="M0 297c98-48 190-48 277-1 100 54 211 40 363-29v153H0z" fill="#60a847"/>
+  <path d="M320 315c-1-88 33-151 102-190" fill="none" stroke="#286b3a" stroke-width="16" stroke-linecap="round"/>
+  <path d="M315 252c-77 3-139-38-171-115 84-5 145 34 171 115z" fill="#36a85f"/>
+  <path d="M370 219c13-77 72-132 154-145-12 90-67 141-154 145z" fill="#2f934f"/>
+  <path d="M285 299c-58 15-112-8-153-64 65-18 120 6 153 64zM356 285c46-41 105-47 167-15-50 47-109 52-167 15z" fill="#52bd6f"/>
+  <circle cx="462" cy="128" r="16" fill="#a3d977"/>
+  <circle cx="194" cy="171" r="14" fill="#a3d977"/>
+</svg>

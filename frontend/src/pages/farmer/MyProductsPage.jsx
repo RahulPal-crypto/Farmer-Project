@@ -84,9 +84,9 @@ function MyProductsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">My Products</h1>
-        <p className="mt-2 text-sm text-slate-500">Track your current product listings and stock levels.</p>
+      <div className="rounded-3xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-black text-slate-900">Product Management</h1>
+        <p className="mt-2 text-sm text-slate-500">Update listings, prices, activation status, and inventory levels.</p>
       </div>
 
       <ErrorAlert message={error} />
@@ -96,7 +96,7 @@ function MyProductsPage() {
       ) : (
         <div className="grid gap-5 md:grid-cols-2">
           {products.map((product) => (
-            <article key={product._id} className="rounded-3xl bg-white p-6 shadow-sm">
+            <article key={product._id} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
               {editingProductId === product._id ? (
                 <div className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -155,16 +155,28 @@ function MyProductsPage() {
                 <>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-lg font-semibold text-slate-900">{product.name}</h2>
+                      <h2 className="text-lg font-black text-slate-900">{product.name}</h2>
                       <p className="text-sm text-slate-500">{product.category}</p>
                     </div>
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
                       Rs. {product.price}
                     </span>
                   </div>
-                  <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
-                    <span>Quantity: {product.quantity}</span>
-                    <span>{product.isActive ? "Active" : "Inactive"}</span>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-bold text-slate-500">Stock</p>
+                      <p className="text-lg font-black text-slate-900">{product.quantity}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-bold text-slate-500">Status</p>
+                      <p className="text-lg font-black text-slate-900">{product.isActive ? "Active" : "Inactive"}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-xs font-bold text-slate-500">Inventory</p>
+                      <p className={`text-lg font-black ${Number(product.quantity || 0) <= 5 ? "text-amber-700" : "text-emerald-700"}`}>
+                        {Number(product.quantity || 0) <= 5 ? "Low" : "Good"}
+                      </p>
+                    </div>
                   </div>
                   <div className="mt-5 flex flex-wrap gap-3">
                     <button

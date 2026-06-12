@@ -69,9 +69,9 @@ function OrdersPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">My Orders</h1>
-        <p className="mt-2 text-sm text-slate-500">Track your marketplace orders and their current status.</p>
+      <div className="rounded-3xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-black text-slate-900">My Orders</h1>
+        <p className="mt-2 text-sm text-slate-500">Track orders, chat with farmers, and review delivered purchases.</p>
       </div>
 
       <ErrorAlert message={error} />
@@ -80,7 +80,7 @@ function OrdersPage() {
         <EmptyState title="No orders yet" description="Your placed orders will appear here." />
       ) : (
         orders.map((order) => (
-          <article key={order._id} className="rounded-3xl bg-white p-6 shadow-sm">
+          <article key={order._id} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-slate-500">Order ID: {order._id}</p>
@@ -89,6 +89,25 @@ function OrdersPage() {
               <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold capitalize text-emerald-700">
                 {order.status}
               </span>
+            </div>
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-4">
+              {["placed", "accepted", "packed", "delivered"].map((step) => {
+                const activeSteps = ["pending", "accepted", "delivered"].includes(order.status)
+                  ? ["placed", ...(order.status !== "pending" ? ["accepted", "packed"] : []), ...(order.status === "delivered" ? ["delivered"] : [])]
+                  : ["placed"];
+
+                return (
+                  <div
+                    key={step}
+                    className={`rounded-2xl px-3 py-2 text-xs font-black capitalize ${
+                      activeSteps.includes(step) ? "bg-emerald-100 text-emerald-700" : "bg-slate-50 text-slate-400"
+                    }`}
+                  >
+                    {step}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-4 space-y-2 text-sm text-slate-600">

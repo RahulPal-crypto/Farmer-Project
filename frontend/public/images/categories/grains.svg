@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Grains and pulses">
+  <rect width="640" height="420" fill="#fff2cf"/>
+  <ellipse cx="320" cy="326" rx="232" ry="45" fill="#b9873d" opacity=".3"/>
+  <path d="M132 255c27-92 101-137 185-117 90 22 158 8 207-38 34 75 16 156-51 207-95 58-242 59-341-52z" fill="#9a6227"/>
+  <path d="M150 260c110 42 245 42 348 0v49c-107 51-237 51-348 0z" fill="#b87934"/>
+  <circle cx="232" cy="219" r="39" fill="#f6c453"/>
+  <circle cx="298" cy="207" r="44" fill="#f0ad35"/>
+  <circle cx="369" cy="220" r="40" fill="#e8d8a9"/>
+  <circle cx="438" cy="212" r="36" fill="#3f2a1d"/>
+  <path d="M171 145c43-70 98-70 136 0M332 140c44-72 101-72 139 0" fill="none" stroke="#d19a3a" stroke-width="15" stroke-linecap="round"/>
+  <path d="M267 107v193M430 99v201" stroke="#8f5b23" stroke-width="9" stroke-linecap="round"/>
+</svg>

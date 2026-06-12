@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 import ErrorAlert from "../../components/ErrorAlert";
 import { getApiErrorMessage } from "../../services/api";
@@ -15,6 +16,7 @@ const initialForm = {
 };
 
 function AddProductPage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState(initialForm);
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,25 @@ function AddProductPage() {
       setError("");
       setSuccess("");
 
+      // If coordinates still default, attempt to fetch current coordinates (may prompt)
+      if (
+        formData.latitude === DEFAULT_LOCATION.latitude &&
+        formData.longitude === DEFAULT_LOCATION.longitude &&
+        typeof navigator !== "undefined" &&
+        navigator.permissions
+      ) {
+        try {
+          const perm = await navigator.permissions.query({ name: "geolocation" });
+          // only request if permission granted or prompt (to try to get accurate location)
+          if (perm.state === "granted" || perm.state === "prompt") {
+            const coordinates = await getCurrentCoordinates();
+            setFormData((current) => ({ ...current, ...coordinates }));
+          }
+        } catch (e) {
+          // ignore permission errors and proceed with existing coords
+        }
+      }
+
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
         payload.append(key, value);
@@ -53,7 +74,14 @@ function AddProductPage() {
       setFormData(initialForm);
       setImageFile(null);
     } catch (error) {
-      setError(getApiErrorMessage(error, "Unable to add product"));
+      // Handle unauthorized/token issues explicitly
+      const status = error?.response?.status;
+      if (status === 401) {
+        setError("Not authorized, please login again.");
+        setTimeout(() => navigate("/auth/login"), 1400);
+      } else {
+        setError(getApiErrorMessage(error, "Unable to add product"));
+      }
     } finally {
       setLoading(false);
     }
@@ -75,6 +103,37 @@ function AddProductPage() {
       setLocationLoading(false);
     }
   };
+
+  // Auto-fill coordinates if geolocation permission already granted
+  useEffect(() => {
+    let cancelled = false;
+
+    const tryAutoFill = async () => {
+      if (typeof navigator === "undefined" || !navigator.permissions) return;
+
+      try {
+        const perm = await navigator.permissions.query({ name: "geolocation" });
+        if (perm.state === "granted") {
+          try {
+            const coordinates = await getCurrentCoordinates();
+            if (!cancelled) {
+              setFormData((current) => ({ ...current, ...coordinates }));
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      } catch (e) {
+        // permissions API not supported or failed - do nothing
+      }
+    };
+
+    tryAutoFill();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm md:p-8">

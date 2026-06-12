@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Fresh fruits">
+  <rect width="640" height="420" fill="#fff4d8"/>
+  <circle cx="178" cy="171" r="58" fill="#d92f2f"/>
+  <circle cx="256" cy="238" r="72" fill="#ffb627"/>
+  <circle cx="356" cy="180" r="64" fill="#f77f00"/>
+  <circle cx="446" cy="252" r="70" fill="#e5383b"/>
+  <circle cx="291" cy="145" r="25" fill="#7a1f68"/>
+  <circle cx="330" cy="130" r="24" fill="#8c2f75"/>
+  <circle cx="371" cy="138" r="25" fill="#6d1f5f"/>
+  <circle cx="309" cy="174" r="24" fill="#7a1f68"/>
+  <circle cx="350" cy="174" r="24" fill="#8c2f75"/>
+  <path d="M148 107c7-34 39-61 79-63-3 43-34 66-79 63zM382 107c18-28 55-41 93-31-21 34-54 44-93 31z" fill="#2e8b57"/>
+  <path d="M104 304c100 36 312 39 432 0l-31 49c-103 36-264 37-370 1z" fill="#a86f35"/>
+  <path d="M104 304c108 31 309 33 432 0" fill="none" stroke="#cf8b45" stroke-width="16" stroke-linecap="round"/>
+</svg>

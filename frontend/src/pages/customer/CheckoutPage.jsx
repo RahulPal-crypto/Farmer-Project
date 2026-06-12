@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
+import EmptyState from "../../components/EmptyState";
 import ErrorAlert from "../../components/ErrorAlert";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
@@ -28,6 +30,20 @@ function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState("");
+
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        title="Your cart is empty"
+        description="Add live marketplace products before starting checkout."
+        action={
+          <Link to="/" className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white">
+            Browse Products
+          </Link>
+        }
+      />
+    );
+  }
 
   const handlePlaceOrder = async () => {
     try {

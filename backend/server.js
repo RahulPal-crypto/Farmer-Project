@@ -3,8 +3,38 @@ const http = require("http");
 const path = require("path");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const fs = require("fs");
 
-dotenv.config();
+// Ensure we load the .env file located in the backend folder
+dotenv.config({ path: path.join(__dirname, ".env") });
+
+// global crash logging to help diagnose intermittent crashes
+try {
+  const logDir = path.join(__dirname, "logs");
+  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
+  const errLog = (msg) => {
+    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    try {
+      fs.appendFileSync(path.join(logDir, "error.log"), line);
+    } catch (e) {
+      /* ignore logging failure */
+    }
+    // also print to console
+    console.error(msg);
+  };
+
+  process.on("uncaughtException", (err) => {
+    errLog(`uncaughtException: ${err?.stack || err}`);
+    // allow process to exit so supervisor (nodemon) can restart
+    process.exit(1);
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    errLog(`unhandledRejection: ${reason && reason.stack ? reason.stack : reason}`);
+  });
+} catch (e) {
+  console.error("Failed to initialize crash logger", e?.message || e);
+}
 
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
@@ -17,8 +47,10 @@ const productRoutes = require("./routes/product");
 const orderRoutes = require("./routes/order");
 const reviewRoutes = require("./routes/review");
 const uploadRoutes = require("./routes/upload");
+const marketPriceRoutes = require("./routes/marketPrices");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const { initSocket } = require("./socket");
+const { startMarketPriceCron } = require("./jobs/marketPriceCron");
 
 const requireEnv = (names) => {
   const missing = names.filter((name) => !process.env[name]);
@@ -93,6 +125,19 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/uploads", uploadRoutes);
+// Market prices API
+app.use("/api/market-prices", marketPriceRoutes);
+
+// Start market price cron only if a data source is configured
+if (process.env.MARKET_API_URL) {
+  try {
+    startMarketPriceCron();
+  } catch (err) {
+    console.error("Failed to start market price cron:", err?.message || err);
+  }
+} else {
+  console.warn("MARKET_API_URL not configured — market price cron is disabled");
+}
 
 app.use(notFound);
 app.use(errorHandler);

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Dairy products">
+  <rect width="640" height="420" fill="#eef7ff"/>
+  <ellipse cx="320" cy="335" rx="220" ry="39" fill="#abc4d6" opacity=".45"/>
+  <path d="M196 127h58l16 57v144c0 26-21 47-47 47s-47-21-47-47V184z" fill="#ffffff" stroke="#d7e5ef" stroke-width="8"/>
+  <path d="M202 80h46v53h-46z" fill="#f8fbff" stroke="#d7e5ef" stroke-width="8"/>
+  <path d="M338 118h64l22 70v132c0 31-25 56-56 56s-56-25-56-56V188z" fill="#fffdf3" stroke="#d9e3e8" stroke-width="8"/>
+  <path d="M346 72h48v52h-48z" fill="#fffdf3" stroke="#d9e3e8" stroke-width="8"/>
+  <ellipse cx="480" cy="293" rx="71" ry="38" fill="#ffffff" stroke="#d9e3e8" stroke-width="8"/>
+  <path d="M429 291c24 25 77 26 103 0v42c-26 25-79 25-103 0z" fill="#f6fbff" stroke="#d9e3e8" stroke-width="8"/>
+  <path d="M176 202h94v56h-94zM312 211h112v63H312z" fill="#f3d36b" opacity=".75"/>
+  <circle cx="483" cy="282" r="26" fill="#f5d46c"/>
+</svg>

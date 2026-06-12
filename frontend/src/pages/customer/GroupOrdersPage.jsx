@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import EmptyState from "../../components/EmptyState";
 import ErrorAlert from "../../components/ErrorAlert";
@@ -97,24 +98,33 @@ function GroupOrdersPage() {
     <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
       <section className="rounded-3xl bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-bold text-slate-900">Start Group Buy</h1>
-        <p className="mt-2 text-sm text-slate-500">Create a shared order to unlock a quantity discount.</p>
+        <p className="mt-2 text-sm text-slate-500">Create a shared order from live products available in the marketplace.</p>
 
         <form onSubmit={handleCreate} className="mt-6 space-y-4">
           <ErrorAlert message={error} />
           {success ? <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
 
-          <select
-            value={formData.productId}
-            onChange={(event) => setFormData((current) => ({ ...current, productId: event.target.value }))}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-            required
-          >
-            {products.map((product) => (
-              <option key={product._id} value={product._id}>
-                {product.name} - Rs. {product.price}
-              </option>
-            ))}
-          </select>
+          {products.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+              No in-stock products are available for group orders yet.
+              <Link to="/" className="ml-1 font-black text-emerald-700">
+                Browse marketplace
+              </Link>
+            </div>
+          ) : (
+            <select
+              value={formData.productId}
+              onChange={(event) => setFormData((current) => ({ ...current, productId: event.target.value }))}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+              required
+            >
+              {products.map((product) => (
+                <option key={product._id} value={product._id}>
+                  {product.name} - Rs. {product.price}
+                </option>
+              ))}
+            </select>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <input
@@ -159,7 +169,7 @@ function GroupOrdersPage() {
 
           <button
             type="submit"
-            disabled={submitting || products.length === 0}
+            disabled={submitting || products.length === 0 || !formData.productId}
             className="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
             Create Group Order

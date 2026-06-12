@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import PrivateRoute from "./PrivateRoute";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
@@ -51,6 +52,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }

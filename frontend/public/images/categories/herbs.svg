@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Fresh herbs">
+  <rect width="640" height="420" fill="#edf8e8"/>
+  <ellipse cx="320" cy="333" rx="203" ry="36" fill="#538d43" opacity=".28"/>
+  <path d="M318 100v232M275 125c-58 4-100 37-125 99 67 1 109-34 125-99zM342 135c61-6 109 21 143 80-67 11-116-16-143-80zM286 212c-62 7-105 43-126 108 71-4 112-40 126-108zM351 229c70-7 123 24 157 91-76 9-126-21-157-91z" fill="#2f934f"/>
+  <path d="M319 122c-24 50-24 97 0 142 26-45 26-92 0-142z" fill="#47b867"/>
+  <path d="M214 337h213l-28 47H242z" fill="#9a6a38"/>
+  <path d="M225 311h192v39H225z" fill="#c48745"/>
+  <path d="M249 311c48 13 102 13 151 0" fill="none" stroke="#e4aa5d" stroke-width="11" stroke-linecap="round"/>
+</svg>
