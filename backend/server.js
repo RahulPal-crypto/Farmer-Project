@@ -54,6 +54,7 @@ const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const { initSocket } = require("./socket");
 const { startMarketPriceCron } = require("./jobs/marketPriceCron");
 const { seedDefaultMarketPrices } = require("./services/marketPriceFetcher");
+const { ensureAdminUser } = require("./scripts/seedAdmin");
 
 const requireEnv = (names) => {
   const missing = names.filter((name) => !process.env[name]);
@@ -77,6 +78,9 @@ if (
 connectDB().then(() => {
   seedDefaultMarketPrices().catch((err) => {
     console.error("Initial market prices seed check failed:", err?.message || err);
+  });
+  ensureAdminUser().catch((err) => {
+    console.error("Initial admin user auto-seed check failed:", err?.message || err);
   });
 });
 
