@@ -72,6 +72,14 @@ export function AuthProvider({ children }) {
     setError("");
   };
 
+  const updateUser = (userData) => {
+    setUser((prev) => {
+      const merged = { ...prev, ...userData };
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    });
+  };
+
   const value = useMemo(
     () => ({
       user,
@@ -82,6 +90,7 @@ export function AuthProvider({ children }) {
       login,
       signup,
       logout,
+      updateUser,
       clearAuthError: () => setError(""),
     }),
     [user, token, loading, error]

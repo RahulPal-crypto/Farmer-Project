@@ -1,8 +1,11 @@
 const mongoose = require("mongoose");
 
 const Product = require("../models/Product");
+const Order = require("../models/Order");
+const GroupOrder = require("../models/GroupOrder");
 const asyncHandler = require("../middleware/asyncHandler");
 const { storeUploadedImage } = require("../utils/imageStorage");
+const { mapCommodityKey } = require("../services/marketPriceFetcher");
 
 const buildCoordinates = (latitude, longitude) => {
   const lat = Number(latitude);
@@ -60,7 +63,7 @@ const attachImageUrl = (product, req) => {
 };
 
 const addProduct = asyncHandler(async (req, res) => {
-  const { name, price, quantity, category, image, latitude, longitude } = req.body;
+  const { name, price, quantity, category, image, latitude, longitude, harvestDate } = req.body;
 
   if (!name || price === undefined || quantity === undefined || !category) {
     res.status(400);
@@ -77,7 +80,13 @@ const addProduct = asyncHandler(async (req, res) => {
     throw new Error("Valid product latitude and longitude are required");
   }
 
+  if (!req.file && (!image || !String(image).trim())) {
+    res.status(400);
+    throw new Error("Product photo is mandatory. Please upload an authentic photo of your produce.");
+  }
+
   const imageUrl = req.file ? await storeUploadedImage(req.file) : image || "";
+  const commodityKey = req.body.commodityKey || mapCommodityKey(name, category);
 
   const product = await Product.create({
     farmer: req.user._id,
@@ -86,6 +95,8 @@ const addProduct = asyncHandler(async (req, res) => {
     quantity: Number(quantity),
     category,
     image: imageUrl,
+    commodityKey,
+    harvestDate: harvestDate ? new Date(harvestDate) : null,
     location: {
       type: "Point",
       coordinates,
@@ -140,6 +151,14 @@ const updateProduct = asyncHandler(async (req, res) => {
   product.category = category ?? product.category;
   product.image = req.file ? await storeUploadedImage(req.file) : image ?? product.image;
   product.isActive = req.body.isActive !== undefined ? parseBoolean(req.body.isActive) : product.isActive;
+  if (harvestDate !== undefined) {
+    product.harvestDate = harvestDate ? new Date(harvestDate) : null;
+  }
+  if (req.body.commodityKey !== undefined) {
+    product.commodityKey = req.body.commodityKey || null;
+  } else if (name || category) {
+    product.commodityKey = mapCommodityKey(product.name, product.category);
+  }
 
   const updatedProduct = await product.save();
 
@@ -169,6 +188,24 @@ const deleteProduct = asyncHandler(async (req, res) => {
     throw new Error("You can only delete your own products");
   }
 
+  const activeOrdersCount = await Order.countDocuments({
+    "items.product": id,
+    status: { $in: ["pending", "accepted"] },
+  });
+  if (activeOrdersCount > 0) {
+    res.status(400);
+    throw new Error("Cannot delete product with pending or accepted orders. Fulfill or reject them first.");
+  }
+
+  const activeGroupOrdersCount = await GroupOrder.countDocuments({
+    product: id,
+    status: { $in: ["open", "threshold-met"] },
+  });
+  if (activeGroupOrdersCount > 0) {
+    res.status(400);
+    throw new Error("Cannot delete product linked to an active group order.");
+  }
+
   await product.deleteOne();
 
   res.json({ message: "Product deleted successfully" });
@@ -180,6 +217,7 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
     longitude,
     radius = 10,
     category,
+    search,
     minPrice,
     maxPrice,
     page = 1,
@@ -205,6 +243,12 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
 
   if (category) {
     matchStage.category = new RegExp(`^${category}$`, "i");
+  }
+
+  if (search && search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const searchRegex = new RegExp(escaped, "i");
+    matchStage.$or = [{ name: searchRegex }, { category: searchRegex }];
   }
 
   if (hasMinPrice || hasMaxPrice) {
@@ -255,6 +299,9 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
           quantity: 1,
           category: 1,
           image: 1,
+          commodityKey: 1,
+          harvestDate: 1,
+          isActive: 1,
           location: 1,
           createdAt: 1,
           distanceInMeters: 1,
@@ -267,6 +314,8 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
             phone: "$farmer.phone",
             email: "$farmer.email",
             averageRating: "$farmer.averageRating",
+            isVerifiedFarmer: "$farmer.isVerifiedFarmer",
+            verificationStatus: "$farmer.verificationStatus",
           },
         },
       },
@@ -295,7 +344,7 @@ const getNearbyProducts = asyncHandler(async (req, res) => {
 
   const total = await Product.countDocuments(matchStage);
   const products = await Product.find(matchStage)
-    .populate("farmer", "storeName phone email averageRating")
+    .populate("farmer", "storeName phone email averageRating isVerifiedFarmer verificationStatus")
     .sort({ createdAt: -1 })
     .skip((currentPage - 1) * pageSize)
     .limit(pageSize);
@@ -314,7 +363,7 @@ const getProducts = asyncHandler(async (req, res) => getNearbyProducts(req, res)
 
 const getMyProducts = asyncHandler(async (req, res) => {
   const products = await Product.find({ farmer: req.user._id })
-    .populate("farmer", "storeName phone email averageRating")
+    .populate("farmer", "storeName phone email averageRating isVerifiedFarmer verificationStatus")
     .sort({ createdAt: -1 });
 
   res.json({

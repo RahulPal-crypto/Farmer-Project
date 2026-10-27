@@ -6,6 +6,10 @@ import ErrorAlert from "../../components/ErrorAlert";
 import MarketplaceSkeleton from "../../components/MarketplaceSkeleton";
 import ProductCard from "../../components/ProductCard";
 import QuickViewModal from "../../components/QuickViewModal";
+import MarketPriceBadge from "../../components/MarketPriceBadge";
+import WeatherWidget from "../../components/WeatherWidget";
+import VoiceSearchButton from "../../components/VoiceSearchButton";
+import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { useWishlist } from "../../context/WishlistContext";
@@ -36,6 +40,7 @@ const defaultFilters = {
   longitude: DEFAULT_LOCATION.longitude,
   radius: "20",
   category: "",
+  search: "",
   minPrice: "",
   maxPrice: "",
 };
@@ -79,6 +84,15 @@ const categories = [
   },
 ];
 
+const categoryNameHindi = {
+  Vegetables: "सब्ज़ियां",
+  Fruits: "फल",
+  Dairy: "दूध व डेयरी",
+  Grains: "अनाज",
+  Organic: "जैविक (ऑर्गेनिक)",
+  Herbs: "जड़ी-बूटी व मसाले",
+};
+
 const statIcons = [FaTractor, FaUsers, FaBoxOpen, FaMapMarkerAlt];
 
 const trustHighlights = [
@@ -109,8 +123,11 @@ function CustomerHomePage() {
   const { user } = useAuth();
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { language, t, isHindi } = useLanguage();
   const [filters, setFilters] = useState(defaultFilters);
-  const [browseAll, setBrowseAll] = useState(false);
+  const [browseAll, setBrowseAll] = useState(true);
+  const [nearbyEmptyNotice, setNearbyEmptyNotice] = useState(false);
+  const [selectedProduce, setSelectedProduce] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
@@ -124,23 +141,40 @@ function CustomerHomePage() {
       try {
         setLoading(true);
         setError("");
+        setNearbyEmptyNotice(false);
         let data;
         if (browseAll) {
-          data = await fetchAllProducts({ category: filters.category, minPrice: filters.minPrice, maxPrice: filters.maxPrice });
+          data = await fetchAllProducts({
+            category: filters.category,
+            search: filters.search,
+            minPrice: filters.minPrice,
+            maxPrice: filters.maxPrice,
+          });
         } else {
           data = await fetchProducts(filters);
+          // If nearby within radius returns 0 products, automatically fall back to all products
+          if ((!data.products || data.products.length === 0) && !filters.search && !filters.category) {
+            const allData = await fetchAllProducts({
+              minPrice: filters.minPrice,
+              maxPrice: filters.maxPrice,
+            });
+            if (allData.products && allData.products.length > 0) {
+              data = allData;
+              setNearbyEmptyNotice(true);
+            }
+          }
         }
 
         setProducts(data.products || []);
       } catch (error) {
-        setError(getApiErrorMessage(error, "Unable to fetch nearby products"));
+        setError(getApiErrorMessage(error, "Unable to fetch products"));
       } finally {
         setLoading(false);
       }
     };
 
     loadProducts();
-  }, [filters]);
+  }, [filters, browseAll]);
 
   const sortedProducts = useMemo(() => {
     const nextProducts = [...products];
@@ -157,16 +191,79 @@ function CustomerHomePage() {
       );
     }
 
+    if (sortBy === "freshness") {
+      return nextProducts.sort((a, b) => {
+        const timeA = a.harvestDate ? new Date(a.harvestDate).getTime() : 0;
+        const timeB = b.harvestDate ? new Date(b.harvestDate).getTime() : 0;
+        return timeB - timeA;
+      });
+    }
+
     if (sortBy === "rating") {
       return nextProducts.sort(
         (a, b) =>
-          Number(b.averageRating || b.rating || 0) -
-          Number(a.averageRating || a.rating || 0),
+          Number(b.farmer?.averageRating || b.averageRating || b.rating || 0) -
+          Number(a.farmer?.averageRating || a.averageRating || a.rating || 0),
       );
     }
 
     return nextProducts;
   }, [products, sortBy]);
+
+  const availableProduceInCat = useMemo(() => {
+    if (!filters.category) return [];
+
+    const map = new Map();
+    products.forEach((p) => {
+      const catMatch = p.category?.toLowerCase() === filters.category.toLowerCase();
+      if (!catMatch) return;
+
+      const name = p.name?.trim();
+      if (!name) return;
+
+      if (!map.has(name)) {
+        map.set(name, {
+          name,
+          farmers: new Set(),
+          minPrice: Number(p.price) || 0,
+          maxPrice: Number(p.price) || 0,
+          commodityKey: p.commodityKey,
+          count: 0,
+        });
+      }
+
+      const item = map.get(name);
+      item.count += 1;
+      item.minPrice = Math.min(item.minPrice, Number(p.price) || 0);
+      item.maxPrice = Math.max(item.maxPrice, Number(p.price) || 0);
+
+      const farmerId = p.farmer?._id || p.farmer?.storeName || p.farmerName;
+      if (farmerId) {
+        item.farmers.add(farmerId);
+      }
+    });
+
+    return Array.from(map.values()).map((entry) => ({
+      ...entry,
+      farmerCount: entry.farmers.size || 1,
+    }));
+  }, [products, filters.category]);
+
+  const activeProduceInfo = useMemo(() => {
+    if (!selectedProduce) return null;
+    return availableProduceInCat.find(
+      (p) => p.name.toLowerCase() === selectedProduce.toLowerCase()
+    );
+  }, [availableProduceInCat, selectedProduce]);
+
+  const finalDisplayedProducts = useMemo(() => {
+    if (!selectedProduce) {
+      return sortedProducts;
+    }
+    return sortedProducts.filter(
+      (p) => p.name?.trim().toLowerCase() === selectedProduce.toLowerCase()
+    );
+  }, [sortedProducts, selectedProduce]);
 
   const categorySummaries = useMemo(() => {
     const counts = products.reduce((totals, product) => {
@@ -215,7 +312,7 @@ function CustomerHomePage() {
         current.nearestDistance = product.distanceInKm;
       }
 
-      const rating = Number(product.averageRating || product.rating || 0);
+      const rating = Number(product.farmer?.averageRating || product.averageRating || product.rating || 0);
       if (rating > 0) {
         current.ratingTotal += rating;
         current.ratingCount += 1;
@@ -298,6 +395,7 @@ function CustomerHomePage() {
       setError("");
       const coordinates = await getCurrentCoordinates();
       setFilters((current) => ({ ...current, ...coordinates }));
+      setBrowseAll(false);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -331,6 +429,13 @@ function CustomerHomePage() {
 
   return (
     <div className="max-w-full space-y-6 overflow-hidden bg-slate-50 pb-10">
+      {/* Live Regional Harvest Weather Bar */}
+      <WeatherWidget
+        compact={true}
+        latitude={filters.latitude}
+        longitude={filters.longitude}
+      />
+
       <section
         className="overflow-hidden rounded-[1.25rem] bg-emerald-950 text-white shadow-xl shadow-emerald-950/20"
         style={{
@@ -342,19 +447,18 @@ function CustomerHomePage() {
           backgroundSize: "contain",
         }}
       >
-        <div className="px-5 py-4 sm:px-8 sm:py-3 lg:px-10">
-          <div className="max-w-2xl">
+        <div className="px-4 py-6 sm:px-8 sm:py-8 lg:px-10 2xl:px-14 2xl:py-12">
+          <div className="max-w-2xl 2xl:max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-lime-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-lime-300 ring-1 ring-lime-300/20">
               <FaMapMarkerAlt className="text-sm text-white" />
-              Local farm marketplace
+              {t("hero_badge", "Local farm marketplace")}
             </div>
-            <h1 className="mt-3 max-w-2xl text-3xl font-black leading-tight sm:text-4xl lg:text-[2.8rem]">
-              Fresh groceries from local farmers, listed{" "}
-              <span className="text-lime-400">near you.</span>
+            <h1 className="mt-3 max-w-2xl 2xl:max-w-3xl text-2xl font-black leading-tight sm:text-4xl lg:text-[2.8rem] 2xl:text-5xl">
+              {t("hero_title_prefix", "Fresh groceries from local farmers, listed")}{" "}
+              <span className="text-lime-400">{t("hero_title_highlight", "near you.")}</span>
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50 sm:text-base">
-              Shop vegetables, fruits, dairy, grains, and organic produce from
-              listings added by real farmers in your service area.
+              {t("hero_subtitle", "Shop vegetables, fruits, dairy, grains, and organic produce from listings added by real farmers in your service area.")}
             </p>
 
             <div className="mt-4 grid max-w-2xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -362,18 +466,27 @@ function CustomerHomePage() {
                 <FaSearch className="shrink-0 text-lg text-slate-400" />
                 <input
                   type="search"
-                  name="category"
-                  value={filters.category}
+                  name="search"
+                  value={filters.search}
                   onChange={handleChange}
-                  placeholder="Search tomatoes, dairy, grains, organic..."
+                  placeholder={t("search_placeholder", "Search tomatoes, dairy, grains, organic...")}
                   className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-500"
+                />
+                <VoiceSearchButton
+                  onVoiceResult={(query) => {
+                    setFilters((prev) => ({ ...prev, search: query }));
+                    const productsSec = document.getElementById("products");
+                    if (productsSec) {
+                      productsSec.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
                 />
               </label>
               <a
                 href="#products"
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-lime-500 px-6 text-sm font-black text-emerald-950 shadow-lg shadow-lime-950/20 hover:bg-lime-400"
               >
-                Browse Products
+                {t("btn_browse_products", "Browse Products")}
               </a>
             </div>
 
@@ -385,7 +498,9 @@ function CustomerHomePage() {
                 className="inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/5 px-4 py-2 text-sm font-black text-white backdrop-blur hover:bg-white/15 disabled:opacity-70"
               >
                 <FaLocationArrow />
-                {locating ? "Finding farms..." : "Explore Nearby Farms"}
+                {locating
+                  ? t("btn_finding_farms", "Finding farms...")
+                  : t("btn_explore_nearby", "Explore Nearby Farms")}
               </button>
               <button
                 type="button"
@@ -399,7 +514,7 @@ function CustomerHomePage() {
                 }`}
               >
                 <FaBoxOpen />
-                {browseAll ? "Browsing All" : "Browse All"}
+                {browseAll ? (isHindi ? "सभी फसलें देख रहे हैं" : "Browsing All") : (isHindi ? "सभी फसलें देखें" : "Browse All")}
               </button>
               <button
                 type="button"
@@ -410,7 +525,7 @@ function CustomerHomePage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-black text-emerald-800 shadow-lg shadow-emerald-950/10 hover:bg-emerald-50"
               >
                 <FaFilter />
-                Reset Filters
+                {t("btn_reset_filters", "Reset Filters")}
               </button>
             </div>
           </div>
@@ -444,7 +559,7 @@ function CustomerHomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         {trustHighlights.map(([Icon, title, text]) => (
           <article
             key={title}
@@ -479,16 +594,17 @@ function CustomerHomePage() {
           </div>
           <button
             type="button"
-            onClick={() =>
-              setFilters((current) => ({ ...current, category: "" }))
-            }
+            onClick={() => {
+              setFilters((current) => ({ ...current, category: "" }));
+              setSelectedProduce("");
+            }}
             className="inline-flex items-center gap-2 rounded-full px-1 text-sm font-black text-emerald-700 hover:text-emerald-800"
           >
             View all categories
             <FaArrowRight className="text-xs" />
           </button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
           {categorySummaries.map((category) => {
             const CategoryIcon = category.icon;
             const isSelected = filters.category === category.name;
@@ -497,12 +613,15 @@ function CustomerHomePage() {
               <button
                 key={category.name}
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setFilters((current) => ({
                     ...current,
-                    category: category.name,
-                  }))
-                }
+                    category: current.category === category.name ? "" : category.name,
+                  }));
+                  setSelectedProduce("");
+                  const el = document.getElementById("products");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
                 className={`group flex h-full flex-col rounded-2xl border bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-slate-200/80 ${
                   isSelected
                     ? "border-emerald-400 ring-2 ring-emerald-100"
@@ -520,7 +639,7 @@ function CustomerHomePage() {
                   <div className="flex min-w-0 items-center gap-2">
                     <CategoryIcon className="shrink-0 text-base text-emerald-600" />
                     <p className="truncate font-black text-slate-900">
-                      {category.name}
+                      {isHindi ? categoryNameHindi[category.name] || category.name : category.name}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-lime-100 px-3 py-1 text-xs font-black text-emerald-700">
@@ -539,19 +658,54 @@ function CustomerHomePage() {
       <ErrorAlert message={error} />
 
       <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-lg shadow-slate-200/60">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setBrowseAll(true);
+                setNearbyEmptyNotice(false);
+              }}
+              className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                browseAll
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              🌍 All Farm Produce
+            </button>
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={locating}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black transition ${
+                !browseAll
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <FaLocationArrow className="text-[10px]" />
+              <span>{locating ? "Locating..." : "Near My Location"}</span>
+            </button>
+          </div>
+          <span className="text-xs text-slate-500 font-semibold">
+            {browseAll ? "Showing all live harvest across marketplace" : `Filtering farms within ${filters.radius} km`}
+          </span>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
           <label className="grid gap-1 text-sm font-bold text-slate-500">
-            Category
+            {isHindi ? "श्रेणी (Category)" : "Category"}
             <select
               name="category"
               value={filters.category}
               onChange={handleChange}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-800 outline-none"
             >
-              <option value="">All Categories</option>
+              <option value="">{t("cat_all", "All Categories")}</option>
               {categorySummaries.map((category) => (
                 <option key={category.name} value={category.name}>
-                  {category.name}
+                  {isHindi ? categoryNameHindi[category.name] || category.name : category.name}
                 </option>
               ))}
             </select>
@@ -601,57 +755,286 @@ function CustomerHomePage() {
             type="button"
             onClick={handleUseCurrentLocation}
             disabled={locating}
-            className="h-12 rounded-xl border border-emerald-500 px-6 text-sm font-black text-emerald-700 hover:bg-emerald-50 md:mt-6 xl:min-w-48"
+            className="h-12 w-full rounded-xl border border-emerald-500 px-6 text-sm font-black text-emerald-700 hover:bg-emerald-50 md:mt-6 md:w-auto xl:min-w-48"
           >
             {locating ? "Locating..." : "Use My Location"}
           </button>
         </div>
       </section>
 
+      {nearbyEmptyNotice && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div>
+            <span className="font-bold">📍 No partner farms found within {filters.radius} km of your detected pin.</span>
+            <p className="text-amber-700 mt-0.5">Don't worry! We are displaying all fresh harvest crops available across our wider network.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setBrowseAll(true);
+              setNearbyEmptyNotice(false);
+            }}
+            className="shrink-0 rounded-xl bg-amber-200 px-3.5 py-1.5 font-bold text-amber-900 hover:bg-amber-300 transition"
+          >
+            Show All Regions
+          </button>
+        </div>
+      )}
+
       <section id="products" className="space-y-4">
+        {/* Breadcrumb Navigation */}
+        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+          <button
+            type="button"
+            onClick={() => {
+              setFilters((current) => ({ ...current, category: "" }));
+              setSelectedProduce("");
+            }}
+            className="hover:text-emerald-700 hover:underline"
+          >
+            All Products
+          </button>
+          {filters.category && (
+            <>
+              <span>/</span>
+              <button
+                type="button"
+                onClick={() => setSelectedProduce("")}
+                className={selectedProduce ? "hover:text-emerald-700 hover:underline" : "font-black text-emerald-800"}
+              >
+                {filters.category}
+              </button>
+            </>
+          )}
+          {selectedProduce && (
+            <>
+              <span>/</span>
+              <span className="font-black text-emerald-800">{selectedProduce} (Grower Comparison)</span>
+            </>
+          )}
+        </div>
+
+        {/* Dynamic Produce Sub-Category Chips (When a category is active) */}
+        {filters.category && availableProduceInCat.length > 0 && (
+          <div className="space-y-2.5 rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                Crop Selection • Click a produce to compare local farmers:
+              </p>
+              {selectedProduce && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedProduce("")}
+                  className="text-xs font-bold text-emerald-700 hover:underline"
+                >
+                  Show All {filters.category}
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedProduce("")}
+                className={`rounded-2xl px-4 py-2 text-xs font-black transition ${
+                  !selectedProduce
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                }`}
+              >
+                🌿 All {filters.category}
+              </button>
+              {availableProduceInCat.map((produce) => {
+                const isSelected = selectedProduce.toLowerCase() === produce.name.toLowerCase();
+                return (
+                  <button
+                    key={produce.name}
+                    type="button"
+                    onClick={() => setSelectedProduce(isSelected ? "" : produce.name)}
+                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-xs font-black transition ${
+                      isSelected
+                        ? "bg-emerald-600 text-white ring-2 ring-emerald-500/20 shadow-xs"
+                        : "border border-slate-200 bg-white text-slate-800 hover:border-emerald-300 hover:bg-emerald-50/50"
+                    }`}
+                  >
+                    <span>{produce.name}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                        isSelected ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                      }`}
+                    >
+                      {produce.farmerCount} {produce.farmerCount === 1 ? "grower" : "growers"}
+                    </span>
+                    <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-slate-500"}`}>
+                      Rs. {produce.minPrice === produce.maxPrice ? produce.minPrice : `${produce.minPrice}-${produce.maxPrice}`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Multi-Farmer Crop Comparison Banner (When a specific produce is selected) */}
+        {selectedProduce && (
+          <div className="rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-lime-50/60 to-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🧺</span>
+                  <h3 className="text-xl font-black text-slate-900">
+                    {selectedProduce} — Multi-Farmer Comparison
+                  </h3>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  Comparing <span className="font-bold text-slate-900">{finalDisplayedProducts.length}</span> listing(s) from{" "}
+                  <span className="font-bold text-slate-900">{activeProduceInfo?.farmerCount || finalDisplayedProducts.length}</span> local farm(s).
+                  Prices range from <span className="font-bold text-emerald-800">Rs. {activeProduceInfo?.minPrice}</span> to <span className="font-bold text-emerald-800">Rs. {activeProduceInfo?.maxPrice}</span>.
+                </p>
+              </div>
+              {activeProduceInfo?.commodityKey && (
+                <div className="shrink-0">
+                  <MarketPriceBadge commodityKey={activeProduceInfo.commodityKey} />
+                </div>
+              )}
+            </div>
+
+            {/* Quick Compare Sort Buttons */}
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-emerald-200/50 pt-3">
+              <span className="text-xs font-bold text-slate-500">Compare Farmers by:</span>
+              {[
+                { id: "price-low", label: "💰 Lowest Price" },
+                { id: "nearest", label: "🚜 Nearest Farm" },
+                { id: "freshness", label: "🌿 Freshest Harvest" },
+                { id: "rating", label: "⭐ Top Rated" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setSortBy(opt.id)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                    sortBy === opt.id
+                      ? "bg-emerald-700 text-white shadow-xs"
+                      : "bg-white text-slate-700 border border-slate-200 hover:bg-emerald-50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSelectedProduce("")}
+                className="ml-auto text-xs font-bold text-emerald-700 hover:underline"
+              >
+                ✕ Clear Crop Filter
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Section Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-black text-slate-950">
-              Featured Products
+              {selectedProduce
+                ? `${selectedProduce} from Local Growers`
+                : filters.category
+                ? `${filters.category} Harvest`
+                : "Featured Products"}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Rated, filtered, and ready for cart.
+              {selectedProduce
+                ? `Compare prices, distances, and freshness across farms`
+                : "Rated, filtered, and ready for cart."}
             </p>
           </div>
           <span className="rounded-full bg-lime-100 px-4 py-2 text-xs font-black text-lime-700">
-            {products.length} live{" "}
-            {products.length === 1 ? "listing" : "listings"}
+            {finalDisplayedProducts.length} live{" "}
+            {finalDisplayedProducts.length === 1 ? "listing" : "listings"}
           </span>
         </div>
+
         {loading ? (
           <MarketplaceSkeleton />
-        ) : sortedProducts.length === 0 ? (
-          <EmptyState
-            title="No products found"
-            description="There are no live farmer listings for these filters yet. Add products from a farmer account or try a wider search radius."
-            action={
-              <div className="flex flex-wrap justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFilters(defaultFilters)}
-                  className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700"
-                >
-                  Clear Filters
-                </button>
-                <Link
-                  to={
-                    user?.role === "farmer" ? "/farmer/add-product" : "/signup"
-                  }
-                  className="rounded-2xl border border-emerald-200 px-5 py-3 text-sm font-black text-emerald-700 hover:bg-emerald-50"
-                >
-                  {user?.role === "farmer" ? "Add Product" : "Become a Seller"}
-                </Link>
+        ) : finalDisplayedProducts.length === 0 ? (
+          filters.category && categorySummaries.find((c) => c.name.toLowerCase() === filters.category.toLowerCase())?.count === 0 ? (
+            /* Smart In-Stock Suggestion State for Empty Category */
+            <div className="rounded-3xl border border-dashed border-emerald-300 bg-emerald-50/50 p-8 text-center shadow-xs">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">
+                🌱
               </div>
-            }
-          />
+              <h3 className="mt-4 text-2xl font-black text-slate-900">
+                Fresh {filters.category} Harvest is Growing!
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+                Local farmers are currently tending to {filters.category.toLowerCase()} crops for the upcoming seasonal harvest.
+              </p>
+
+              {/* In-Stock Category Shortcuts */}
+              <div className="mt-6">
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">
+                  Explore Fresh Harvest Currently in Stock:
+                </p>
+                <div className="flex flex-wrap justify-center gap-2.5">
+                  {categorySummaries
+                    .filter((c) => c.count > 0)
+                    .map((cat) => (
+                      <button
+                        key={cat.name}
+                        type="button"
+                        onClick={() => {
+                          setFilters((prev) => ({ ...prev, category: cat.name }));
+                          setSelectedProduce("");
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-emerald-300 px-4 py-2 text-xs font-bold text-emerald-800 shadow-xs hover:bg-emerald-100 transition"
+                      >
+                        <span>{cat.name}</span>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px]">
+                          {cat.count} items
+                        </span>
+                      </button>
+                    ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, category: "" }));
+                      setSelectedProduce("");
+                    }}
+                    className="rounded-2xl bg-emerald-700 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition shadow-xs"
+                  >
+                    View All Categories
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              title="No products found"
+              description="There are no live farmer listings for these filters yet. Add products from a farmer account or try a wider search radius."
+              action={
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters(defaultFilters);
+                      setSelectedProduce("");
+                    }}
+                    className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700"
+                  >
+                    Clear Filters
+                  </button>
+                  <Link
+                    to={user?.role === "farmer" ? "/farmer/add-product" : "/signup"}
+                    className="rounded-2xl border border-emerald-200 px-5 py-3 text-sm font-black text-emerald-700 hover:bg-emerald-50"
+                  >
+                    {user?.role === "farmer" ? "Add Product" : "Become a Seller"}
+                  </Link>
+                </div>
+              }
+            />
+          )
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {sortedProducts.map((product) => (
+          <div className="grid gap-4 sm:gap-5.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5">
+            {finalDisplayedProducts.map((product) => (
               <ProductCard
                 key={product._id}
                 product={product}

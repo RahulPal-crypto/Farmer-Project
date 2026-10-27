@@ -94,7 +94,7 @@ function MyProductsPage() {
       {products.length === 0 ? (
         <EmptyState title="No products listed" description="Add your first product to start selling." />
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {products.map((product) => (
             <article key={product._id} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
               {editingProductId === product._id ? (

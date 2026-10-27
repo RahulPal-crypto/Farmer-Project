@@ -58,7 +58,12 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: null,
       index: true,
-      enum: [null, "tomato", "potato", "onion", "wheat", "rice"],
+      trim: true,
+      lowercase: true,
+    },
+    harvestDate: {
+      type: Date,
+      default: null,
     },
   },
   {

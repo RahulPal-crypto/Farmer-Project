@@ -26,9 +26,13 @@ function LoginPage() {
 
     try {
       const user = await login(formData);
-      const nextPath =
-        location.state?.from?.pathname ||
-        (user.role === "farmer" ? "/farmer/dashboard" : "/");
+      const defaultPath =
+        user.role === "farmer"
+          ? "/farmer/dashboard"
+          : user.role === "admin"
+          ? "/admin"
+          : "/";
+      const nextPath = location.state?.from?.pathname || defaultPath;
       navigate(nextPath, { replace: true });
     } catch (error) {}
   };

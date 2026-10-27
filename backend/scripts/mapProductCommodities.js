@@ -2,6 +2,7 @@
  * One-time script to map existing products to commodity keys based on name.
  * Run with: node scripts/mapProductCommodities.js
  */
+require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") });
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
 

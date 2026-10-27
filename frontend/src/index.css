@@ -1,12 +1,22 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: #f8fafc;
   color: #0f172a;
+  overflow-x: hidden;
 }
 
 * {
   box-sizing: border-box;
+}
+
+img, svg, video, canvas, audio, iframe, embed, object {
+  max-width: 100%;
 }

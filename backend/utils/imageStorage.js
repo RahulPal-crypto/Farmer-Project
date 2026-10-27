@@ -31,25 +31,44 @@ const removeLocalFile = async (filePath) => {
   } catch (error) {}
 };
 
+/**
+ * Stores an uploaded image.
+ * Tries Cloudinary first when configured.
+ * If Cloudinary is not configured or throws a network / authentication error,
+ * safely falls back to local static file serving under /uploads.
+ */
 const storeUploadedImage = async (file) => {
   if (!file) {
     return "";
   }
 
+  const localRelativePath = `/uploads/${path.basename(file.path)}`;
+
   if (!configureCloudinary()) {
-    return `/uploads/${path.basename(file.path)}`;
+    return localRelativePath;
   }
 
-  const result = await cloudinary.uploader.upload(file.path, {
-    folder: "farmer-marketplace/products",
-    resource_type: "image",
-  });
+  try {
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "farmer-marketplace/products",
+      resource_type: "image",
+    });
 
-  await removeLocalFile(file.path);
+    // Remove local copy only after Cloudinary upload succeeds
+    await removeLocalFile(file.path);
 
-  return result.secure_url;
+    return result.secure_url;
+  } catch (error) {
+    console.warn(
+      "Cloudinary upload failed, falling back to local static file serving:",
+      error.message || error
+    );
+    // Keep local file intact so the user's uploaded product image remains accessible
+    return localRelativePath;
+  }
 };
 
 module.exports = {
   storeUploadedImage,
+  hasCloudinaryConfig,
 };

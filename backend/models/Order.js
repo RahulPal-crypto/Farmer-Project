@@ -58,6 +58,15 @@ const orderSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
+    deliveryAddress: {
+      street: { type: String, default: "" },
+      city: { type: String, default: "" },
+      pincode: { type: String, default: "" },
+      notes: { type: String, default: "" },
+      contactPhone: { type: String, default: "" },
+      whatsappPhone: { type: String, default: "" },
+      deliverySlot: { type: String, default: "Standard Any-Time (Within 24 Hours)" },
+    },
     status: {
       type: String,
       enum: ["pending", "accepted", "rejected", "delivered"],

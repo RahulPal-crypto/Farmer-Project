@@ -30,6 +30,19 @@ const userSchema = new mongoose.Schema(
       required: [true, "Phone number is required"],
       trim: true,
     },
+    whatsappPhone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    isWhatsappSameAsPhone: {
+      type: Boolean,
+      default: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     location: {
       type: {
         type: String,
@@ -57,6 +70,30 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    isVerifiedFarmer: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    verificationStatus: {
+      type: String,
+      enum: ["unverified", "pending", "verified", "rejected"],
+      default: "unverified",
+      index: true,
+    },
+    verificationDocuments: [
+      {
+        docType: { type: String, trim: true },
+        docNumber: { type: String, trim: true },
+        docUrl: { type: String, trim: true },
+        submittedAt: { type: Date, default: Date.now },
+      },
+    ],
+    verificationNotes: {
+      type: String,
+      trim: true,
+      default: "",
     },
   },
   {

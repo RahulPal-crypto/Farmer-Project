@@ -60,6 +60,18 @@ const paymentSchema = new mongoose.Schema(
       ref: "Order",
       default: null,
     },
+    orders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
+      },
+    ],
+    deliveryAddress: {
+      street: { type: String, default: "" },
+      city: { type: String, default: "" },
+      pincode: { type: String, default: "" },
+      notes: { type: String, default: "" },
+    },
   },
   {
     timestamps: true,

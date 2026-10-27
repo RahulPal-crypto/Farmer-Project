@@ -10,6 +10,11 @@ const fallbackImage =
 function CartPage() {
   const { items, subtotal, removeFromCart, updateCartQuantity } = useCart();
 
+  const farmerIds = new Set(
+    items.map((item) => (typeof item.farmer === "object" ? item.farmer?._id : item.farmer)).filter(Boolean)
+  );
+  const hasMultipleFarmers = farmerIds.size > 1;
+
   if (items.length === 0) {
     return (
       <EmptyState
@@ -25,7 +30,7 @@ function CartPage() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+    <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr] 2xl:grid-cols-[1.7fr_0.8fr]">
       <section className="space-y-4">
         <div className="rounded-3xl bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-black text-slate-950">Shopping Cart</h1>
@@ -92,6 +97,11 @@ function CartPage() {
           <span>Total</span>
           <span className="text-lg font-black text-slate-900">Rs. {subtotal.toFixed(2)}</span>
         </div>
+        {hasMultipleFarmers && (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800">
+            <strong>✨ Multi-farm order supported:</strong> Items from {farmerIds.size} different farms will be seamlessly auto-split into individual orders per farm at checkout.
+          </div>
+        )}
         <Link
           to="/checkout"
           className="mt-6 inline-flex w-full justify-center rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700"

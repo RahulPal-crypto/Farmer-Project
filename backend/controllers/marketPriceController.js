@@ -63,12 +63,12 @@ const getHistory = asyncHandler(async (req, res) => {
 });
 
 const getAll = asyncHandler(async (req, res) => {
-  // get latest price per commodityKey
+  // get latest date's price per commodityKey
   const rows = await MarketPrice.aggregate([
     { $sort: { date: -1 } },
     {
       $group: {
-        _id: "$commodityKey",
+        _id: { commodityKey: "$commodityKey", date: "$date" },
         commodityKey: { $first: "$commodityKey" },
         commodityName: { $first: "$commodityName" },
         modalPrice: { $avg: "$modalPrice" },
@@ -78,9 +78,27 @@ const getAll = asyncHandler(async (req, res) => {
         unit: { $first: "$unit" },
       },
     },
+    { $sort: { date: -1 } },
+    {
+      $group: {
+        _id: "$commodityKey",
+        commodityKey: { $first: "$commodityKey" },
+        commodityName: { $first: "$commodityName" },
+        modalPrice: { $first: "$modalPrice" },
+        minPrice: { $first: "$minPrice" },
+        maxPrice: { $first: "$maxPrice" },
+        date: { $first: "$date" },
+        unit: { $first: "$unit" },
+      },
+    },
   ]);
 
-  res.json({ data: rows });
+  const data = rows.map((r) => ({
+    ...r,
+    modalPrice: r.modalPrice ? Number(r.modalPrice.toFixed(2)) : null,
+  }));
+
+  res.json({ data });
 });
 
 module.exports = { getCurrent, getHistory, getAll };

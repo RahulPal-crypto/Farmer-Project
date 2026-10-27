@@ -186,40 +186,87 @@ function GroupOrdersPage() {
         {groupOrders.length === 0 ? (
           <EmptyState title="No open group orders" description="Create one to invite other customers into a shared buy." />
         ) : (
-          groupOrders.map((groupOrder) => (
-            <article key={groupOrder._id} className="rounded-3xl bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">{groupOrder.product?.name}</h3>
-                  <p className="text-sm text-slate-500">
-                    {groupOrder.farmer?.storeName} - {groupOrder.discountPercent}% off
-                  </p>
-                </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                  {groupOrder.totalJoinedQuantity}/{groupOrder.targetQuantity}
-                </span>
-              </div>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <input
-                  type="number"
-                  min="1"
-                  value={joinQuantities[groupOrder._id] || "1"}
-                  onChange={(event) =>
-                    setJoinQuantities((current) => ({ ...current, [groupOrder._id]: event.target.value }))
-                  }
-                  className="rounded-2xl border border-slate-200 px-4 py-2"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleJoin(groupOrder._id)}
-                  disabled={submitting}
-                  className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
-                >
-                  Join
-                </button>
-              </div>
-            </article>
-          ))
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            {groupOrders.map((groupOrder) => {
+              const originalPrice = Number(groupOrder.product?.price || 0);
+              const discountedPrice = (originalPrice * (1 - groupOrder.discountPercent / 100)).toFixed(2);
+              const progress = Math.min(
+                100,
+                Math.round((groupOrder.totalJoinedQuantity / groupOrder.targetQuantity) * 100)
+              );
+              const closesFormatted = groupOrder.closesAt
+                ? new Date(groupOrder.closesAt).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "Soon";
+
+              return (
+                <article key={groupOrder._id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">{groupOrder.product?.name}</h3>
+                      <p className="text-sm text-slate-500">
+                        Sold by {groupOrder.farmer?.storeName || "Farm"}
+                      </p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <span className="text-base font-black text-emerald-700">Rs. {discountedPrice}</span>
+                        {originalPrice > 0 && (
+                          <span className="text-xs text-slate-400 line-through">Rs. {originalPrice}</span>
+                        )}
+                        <span className="rounded-md bg-lime-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                          {groupOrder.discountPercent}% OFF
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                        {groupOrder.totalJoinedQuantity} / {groupOrder.targetQuantity} units
+                      </span>
+                      <p className="mt-1 text-[11px] text-slate-400">Closes: {closesFormatted}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full bg-emerald-500 transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-right text-[11px] font-semibold text-slate-500">
+                      {progress}% target reached
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-600">Qty:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={joinQuantities[groupOrder._id] || "1"}
+                        onChange={(event) =>
+                          setJoinQuantities((current) => ({ ...current, [groupOrder._id]: event.target.value }))
+                        }
+                        className="w-20 rounded-xl border border-slate-200 px-3 py-1.5 text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleJoin(groupOrder._id)}
+                      disabled={submitting}
+                      className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
+                    >
+                      Join Group Buy
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         )}
       </section>
     </div>

@@ -18,6 +18,10 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: "User not found for this token" });
     }
 
+    if (req.user.isActive === false) {
+      return res.status(403).json({ message: "Your account has been suspended by the administrator." });
+    }
+
     next();
   } catch (error) {
     res.status(401).json({ message: "Not authorized, token invalid" });

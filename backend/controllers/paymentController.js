@@ -4,10 +4,15 @@ const Razorpay = require("razorpay");
 
 const Payment = require("../models/Payment");
 const Product = require("../models/Product");
+const User = require("../models/User");
 const asyncHandler = require("../middleware/asyncHandler");
 const { createOrderFromItems } = require("./orderController");
 const { createNotification } = require("../utils/notificationHelper");
 const { emitToUser } = require("../socket");
+const {
+  sendFarmerOrderAlert,
+  sendCustomerOrderPlacedAlert,
+} = require("../services/whatsappService");
 
 const createError = (statusCode, message) => {
   const error = new Error(message);
@@ -32,7 +37,6 @@ const calculateCartTotal = async (items) => {
   }
 
   let total = 0;
-  let farmerId = null;
   const normalizedItems = [];
 
   for (const item of items) {
@@ -49,12 +53,6 @@ const calculateCartTotal = async (items) => {
 
     if (product.quantity < quantity) {
       throw createError(400, `Insufficient quantity for product: ${product.name}`);
-    }
-
-    if (!farmerId) {
-      farmerId = product.farmer.toString();
-    } else if (farmerId !== product.farmer.toString()) {
-      throw createError(400, "All paid products must belong to the same farmer");
     }
 
     normalizedItems.push({
@@ -89,6 +87,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     amount: amountInPaise,
     currency: razorpayOrder.currency,
     items: normalizedItems,
+    deliveryAddress: req.body.deliveryAddress || {},
     status: "created",
   });
 
@@ -121,11 +120,12 @@ const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     throw createError(404, "Payment record not found");
   }
 
-  if (payment.status === "paid" && payment.order) {
+  if (payment.status === "paid" && (payment.order || (payment.orders && payment.orders.length > 0))) {
     const existingOrder = await payment.populate("order");
     res.json({
       message: "Payment already verified",
       order: existingOrder.order,
+      orders: existingOrder.orders,
     });
     return;
   }
@@ -141,37 +141,72 @@ const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     throw createError(400, "Payment verification failed");
   }
 
-  const { order, farmerId, itemCount } = await createOrderFromItems({
-    items: payment.items,
-    customerId: req.user._id,
-    paymentStatus: "paid",
-    paymentMethod: "razorpay",
-    paymentId: payment._id,
-  });
+  let orderResult;
+  try {
+    orderResult = await createOrderFromItems({
+      items: payment.items,
+      customerId: req.user._id,
+      paymentStatus: "paid",
+      paymentMethod: "razorpay",
+      paymentId: payment._id,
+      deliveryAddress: payment.deliveryAddress || req.body.deliveryAddress || {},
+    });
+  } catch (orderErr) {
+    payment.status = "failed";
+    payment.razorpayPaymentId = razorpay_payment_id;
+    payment.razorpaySignature = razorpay_signature;
+    await payment.save();
+    throw createError(
+      400,
+      `Payment received (${razorpay_payment_id}) but order creation failed: ${orderErr.message}. Marked for refund.`
+    );
+  }
 
+  const { orders } = orderResult;
   payment.status = "paid";
   payment.razorpayPaymentId = razorpay_payment_id;
   payment.razorpaySignature = razorpay_signature;
-  payment.order = order._id;
+  payment.order = orders[0]?._id || null;
+  payment.orders = orders.map((o) => o._id);
   await payment.save();
 
-  const farmerNotification = await createNotification({
-    user: farmerId,
-    type: "order",
-    title: "Paid order placed",
-    message: `You received a paid order with ${itemCount} item(s).`,
-    metadata: {
-      orderId: order._id,
-      customerId: req.user._id,
-      paymentId: payment._id,
-    },
-  });
+  const customer = await User.findById(req.user._id).select("storeName phone whatsappPhone email");
 
-  emitToUser(farmerId, "notification:new", farmerNotification);
+  for (const order of orders) {
+    const farmer = await User.findById(order.farmer).select("storeName phone whatsappPhone email");
+
+    // 1. Send WhatsApp / SMS order notification to the farmer
+    sendFarmerOrderAlert({ farmer, customer, order }).catch((err) => {
+      console.warn("Failed to dispatch WhatsApp alert to farmer:", err?.message || err);
+    });
+
+    // 2. Send automated WhatsApp / SMS confirmation to the customer
+    sendCustomerOrderPlacedAlert({ customer, order, farmer }).catch((err) => {
+      console.warn("Failed to dispatch WhatsApp order confirmation to customer:", err?.message || err);
+    });
+
+    const farmerNotification = await createNotification({
+      user: order.farmer,
+      type: "order",
+      title: "Paid order placed",
+      message: `You received a paid order with ${order.items.length} item(s).`,
+      metadata: {
+        orderId: order._id,
+        customerId: req.user._id,
+        paymentId: payment._id,
+      },
+    });
+
+    emitToUser(order.farmer, "notification:new", farmerNotification);
+  }
+
+  const Order = require("../models/Order");
+  await Order.populate(orders, { path: "farmer", select: "storeName phone whatsappPhone email" });
 
   res.json({
     message: "Payment verified and order created successfully",
-    order,
+    orders,
+    order: orders[0],
   });
 });
 

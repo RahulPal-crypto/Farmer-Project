@@ -16,6 +16,8 @@ function SignupPage() {
     password: "",
     role: "customer",
     phone: "",
+    whatsappPhone: "",
+    isWhatsappSameAsPhone: true,
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
   });
@@ -104,6 +106,35 @@ function SignupPage() {
             required
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-emerald-500 focus:outline-none"
           />
+
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+              <input
+                type="checkbox"
+                checked={formData.isWhatsappSameAsPhone ?? true}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    isWhatsappSameAsPhone: e.target.checked,
+                    whatsappPhone: e.target.checked ? "" : formData.whatsappPhone,
+                  })
+                }
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>💬 Same as my WhatsApp number</span>
+            </label>
+
+            {!formData.isWhatsappSameAsPhone && (
+              <input
+                type="text"
+                name="whatsappPhone"
+                placeholder="Alternate WhatsApp number (for order updates)"
+                value={formData.whatsappPhone || ""}
+                onChange={handleChange}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none"
+              />
+            )}
+          </div>
 
           <select
             name="role"

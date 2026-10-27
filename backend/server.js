@@ -48,9 +48,12 @@ const orderRoutes = require("./routes/order");
 const reviewRoutes = require("./routes/review");
 const uploadRoutes = require("./routes/upload");
 const marketPriceRoutes = require("./routes/marketPrices");
+const subscriptionRoutes = require("./routes/subscription");
+const weatherRoutes = require("./routes/weather");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const { initSocket } = require("./socket");
 const { startMarketPriceCron } = require("./jobs/marketPriceCron");
+const { seedDefaultMarketPrices } = require("./services/marketPriceFetcher");
 
 const requireEnv = (names) => {
   const missing = names.filter((name) => !process.env[name]);
@@ -71,7 +74,11 @@ if (
   console.warn("Cloudinary is not configured. Uploaded images may not persist after redeploys.");
 }
 
-connectDB();
+connectDB().then(() => {
+  seedDefaultMarketPrices().catch((err) => {
+    console.error("Initial market prices seed check failed:", err?.message || err);
+  });
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -127,6 +134,8 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/uploads", uploadRoutes);
 // Market prices API
 app.use("/api/market-prices", marketPriceRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/weather", weatherRoutes);
 
 // Start market price cron only if a data source is configured
 if (process.env.MARKET_API_URL) {

@@ -4,8 +4,10 @@ import { Link } from "react-router-dom";
 import EmptyState from "../../components/EmptyState";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import DeliveryRouteMap from "../../components/DeliveryRouteMap";
 import api, { getApiErrorMessage } from "../../services/api";
 import { updateOrderStatus } from "../../services/orderService";
+import { formatWhatsAppUrl, buildFarmerToCustomerStatusText } from "../../utils/whatsapp";
 
 const formatOrderDate = (value) => {
   if (!value) {
@@ -24,6 +26,7 @@ function FarmerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingOrderId, setUpdatingOrderId] = useState("");
+  const [expandedMapOrderId, setExpandedMapOrderId] = useState(null);
 
   const loadOrders = async () => {
     try {
@@ -77,7 +80,17 @@ function FarmerOrdersPage() {
                 <p className="text-sm text-slate-500">Customer</p>
                 <h2 className="text-lg font-semibold text-slate-900">{order.customer?.storeName || "Customer"}</h2>
               </div>
-              <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold capitalize text-emerald-700">
+              <span
+                className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${
+                  order.status === "delivered"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : order.status === "rejected"
+                    ? "bg-red-50 text-red-700"
+                    : order.status === "accepted"
+                    ? "bg-blue-50 text-blue-700"
+                    : "bg-amber-50 text-amber-700"
+                }`}
+              >
                 {order.status}
               </span>
             </div>
@@ -92,6 +105,29 @@ function FarmerOrdersPage() {
                 </div>
               ))}
             </div>
+
+            {order.deliveryAddress?.street && (
+              <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 text-xs text-slate-700">
+                <p className="font-bold text-emerald-900">📍 Customer Destination & Contact:</p>
+                <p className="mt-1 font-medium">
+                  {order.deliveryAddress.street}, {order.deliveryAddress.city} - {order.deliveryAddress.pincode}
+                </p>
+                {order.deliveryAddress.deliverySlot && (
+                  <p className="mt-1 font-semibold text-emerald-800">
+                    🕒 Harvest/Delivery Window: {order.deliveryAddress.deliverySlot}
+                  </p>
+                )}
+                {(order.deliveryAddress.contactPhone || order.customer?.phone) && (
+                  <p className="mt-0.5 text-slate-600">📞 Phone: <span className="font-semibold text-slate-800">{order.deliveryAddress.contactPhone || order.customer.phone}</span></p>
+                )}
+                {(order.deliveryAddress.whatsappPhone || order.customer?.whatsappPhone) && (
+                  <p className="mt-0.5 text-emerald-700">💬 WhatsApp: <span className="font-semibold">{order.deliveryAddress.whatsappPhone || order.customer.whatsappPhone}</span></p>
+                )}
+                {order.deliveryAddress.notes && (
+                  <p className="mt-0.5 italic text-slate-600">Delivery note: {order.deliveryAddress.notes}</p>
+                )}
+              </div>
+            )}
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-slate-50 p-3">
@@ -110,25 +146,92 @@ function FarmerOrdersPage() {
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link
                 to={`/chat/${order._id}`}
                 className="rounded-2xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
               >
-                Chat
+                In-App Chat
               </Link>
-              {["accepted", "rejected", "delivered"].map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => handleUpdateStatus(order._id, status)}
-                  disabled={updatingOrderId === order._id}
-                  className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold capitalize text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              {(order.deliveryAddress?.whatsappPhone || order.customer?.whatsappPhone || order.deliveryAddress?.contactPhone || order.customer?.phone) && (
+                <a
+                  href={formatWhatsAppUrl(
+                    order.deliveryAddress?.whatsappPhone || order.customer?.whatsappPhone || order.deliveryAddress?.contactPhone || order.customer?.phone,
+                    buildFarmerToCustomerStatusText({
+                      order,
+                      status: order.status,
+                      customer: order.customer,
+                    })
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100"
                 >
-                  Mark {status}
+                  <span>💬</span>
+                  <span>WhatsApp Customer</span>
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setExpandedMapOrderId(expandedMapOrderId === order._id ? null : order._id)}
+                className="inline-flex items-center gap-1.5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800 shadow-2xs hover:bg-blue-100"
+              >
+                <span>🗺️</span>
+                <span>{expandedMapOrderId === order._id ? "Hide Route Map" : "View Route Map"}</span>
+              </button>
+              {order.status === "pending" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(order._id, "accepted")}
+                    disabled={updatingOrderId === order._id}
+                    className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    Accept Order
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(order._id, "rejected")}
+                    disabled={updatingOrderId === order._id}
+                    className="rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    Reject Order
+                  </button>
+                </>
+              )}
+              {order.status === "accepted" && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateStatus(order._id, "delivered")}
+                  disabled={updatingOrderId === order._id}
+                  className="rounded-2xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                >
+                  Mark Delivered
                 </button>
-              ))}
+              )}
+              {order.status === "delivered" && (
+                <span className="rounded-2xl bg-emerald-100 px-4 py-2 text-xs font-bold text-emerald-800">
+                  Completed & Delivered
+                </span>
+              )}
+              {order.status === "rejected" && (
+                <span className="rounded-2xl bg-red-100 px-4 py-2 text-xs font-bold text-red-800">
+                  Order Rejected (Stock Restored)
+                </span>
+              )}
             </div>
+
+            {expandedMapOrderId === order._id && (
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <DeliveryRouteMap
+                  farmerLocation={order.farmer?.location}
+                  customerLocation={order.customer?.location}
+                  farmerName="Your Farm"
+                  customerName={order.customer?.storeName || "Customer Destination"}
+                  deliveryAddress={order.deliveryAddress}
+                />
+              </div>
+            )}
           </article>
         ))
       )}

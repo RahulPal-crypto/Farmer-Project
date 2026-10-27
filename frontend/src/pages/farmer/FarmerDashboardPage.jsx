@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import MarketPriceBadge from "../../components/MarketPriceBadge";
-
+import WeatherWidget from "../../components/WeatherWidget";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
@@ -70,17 +70,20 @@ function FarmerDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-4xl bg-linear-to-r from-emerald-800 via-emerald-700 to-lime-600 p-8 text-white shadow-xl shadow-emerald-900/20">
-        <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-100">Farmer workspace</p>
-        <h1 className="mt-4 max-w-3xl text-4xl font-black">Manage inventory, orders, reviews, and sales from one dashboard.</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50">
+      {/* Workspace Hero Banner */}
+      <section className="rounded-3xl sm:rounded-4xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-lime-600 p-5 sm:p-8 lg:p-10 text-white shadow-xl shadow-emerald-900/20">
+        <p className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-emerald-100">Farmer workspace</p>
+        <h1 className="mt-3 max-w-3xl text-2xl sm:text-4xl lg:text-5xl font-black leading-tight">
+          Manage inventory, orders, reviews, and sales from one dashboard.
+        </h1>
+        <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-6 text-emerald-50">
           Keep listings fresh, track low stock, accept orders quickly, and build trust through customer ratings.
         </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link to="/farmer/add-product" className="rounded-2xl bg-white px-5 py-3 font-semibold text-emerald-700">
-            Add Product
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link to="/farmer/add-product" className="rounded-2xl bg-white px-5 py-2.5 sm:py-3 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50">
+            + Add Product
           </Link>
-          <Link to="/farmer/orders" className="rounded-2xl border border-white/30 px-5 py-3 font-semibold text-white">
+          <Link to="/farmer/orders" className="rounded-2xl border border-white/30 px-5 py-2.5 sm:py-3 text-sm font-semibold text-white hover:bg-white/10">
             View Orders
           </Link>
         </div>
@@ -88,22 +91,30 @@ function FarmerDashboardPage() {
 
       <ErrorAlert message={error} />
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      {/* KPI Stats */}
+      <section className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold text-slate-500">{stat.label}</p>
-            <p className="mt-3 text-4xl font-black text-slate-900">{stat.value}</p>
+          <div key={stat.label} className="rounded-3xl border border-slate-100 bg-white p-4 sm:p-6 shadow-sm">
+            <p className="text-xs sm:text-sm font-bold text-slate-500">{stat.label}</p>
+            <p className="mt-2 text-2xl sm:text-4xl font-black text-slate-900">{stat.value}</p>
           </div>
         ))}
       </section>
 
+      {/* Kisan Mausam Seva & Agri-Advisory Forecast */}
+      <WeatherWidget
+        latitude={user?.location?.coordinates?.[1]}
+        longitude={user?.location?.coordinates?.[0]}
+      />
+
+      {/* Market Prices Benchmark */}
       <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-900">Market Prices (sample)</h2>
-        <p className="mt-2 text-sm text-slate-500">Current market prices for your listed commodities.</p>
+        <h2 className="text-2xl font-bold text-slate-900">Market Price Benchmark</h2>
+        <p className="mt-2 text-sm text-slate-500">Current government mandi rates for your listed commodities.</p>
         <div className="mt-4 grid gap-3">
           {products.slice(0, 6).map((product) => (
             <div key={product._id} className="rounded-2xl bg-slate-50 p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{product.name}</p>
                   <p className="text-sm text-slate-500">Your price: Rs. {product.price}</p>
@@ -117,6 +128,7 @@ function FarmerDashboardPage() {
         </div>
       </section>
 
+      {/* Inventory & Sales Analytics */}
       <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-black text-slate-900">Inventory Tracking</h2>
@@ -154,6 +166,7 @@ function FarmerDashboardPage() {
         </div>
       </section>
 
+      {/* Customer Feedback */}
       <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>

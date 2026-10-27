@@ -12,6 +12,7 @@ function ChatPage() {
   const { orderId } = useParams();
   const { user, token } = useAuth();
   const socketRef = useRef(null);
+  const messagesEndRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,10 @@ function ChatPage() {
 
     loadChat();
   }, [orderId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     if (!token) {
@@ -103,7 +108,8 @@ function ChatPage() {
         ) : (
           <div className="space-y-3">
             {messages.map((chatMessage) => {
-              const isMine = chatMessage.sender?._id === user?.id;
+              const senderId = chatMessage.sender?._id || chatMessage.sender;
+              const isMine = String(senderId) === String(user?.id);
 
               return (
                 <div key={chatMessage._id || `${chatMessage.createdAt}-${chatMessage.message}`} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -114,6 +120,7 @@ function ChatPage() {
                 </div>
               );
             })}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </section>

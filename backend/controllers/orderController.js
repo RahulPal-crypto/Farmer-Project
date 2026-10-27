@@ -3,9 +3,15 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Review = require("../models/Review");
+const User = require("../models/User");
 const asyncHandler = require("../middleware/asyncHandler");
 const { createNotification } = require("../utils/notificationHelper");
 const { emitToUser } = require("../socket");
+const {
+  sendFarmerOrderAlert,
+  sendCustomerOrderPlacedAlert,
+  sendCustomerOrderStatusAlert,
+} = require("../services/whatsappService");
 
 const createError = (statusCode, message) => {
   const error = new Error(message);
@@ -13,16 +19,20 @@ const createError = (statusCode, message) => {
   return error;
 };
 
-const createOrderFromItems = async ({ items, customerId, paymentStatus = "pending", paymentMethod = "cod", paymentId = null }) => {
+const createOrdersFromItems = async ({
+  items,
+  customerId,
+  paymentStatus = "pending",
+  paymentMethod = "cod",
+  paymentId = null,
+  deliveryAddress = {},
+}) => {
   if (!Array.isArray(items) || items.length === 0) {
     throw createError(400, "Order items are required");
   }
 
-  const normalizedItems = [];
-  let totalPrice = 0;
-  let farmerId = null;
-  const productsToUpdate = [];
-
+  // Validate all items first
+  const validatedEntries = [];
   for (const item of items) {
     if (!item.productId || !item.quantity) {
       throw createError(400, "Each item must include productId and quantity");
@@ -34,8 +44,8 @@ const createOrderFromItems = async ({ items, customerId, paymentStatus = "pendin
 
     const product = await Product.findById(item.productId);
 
-    if (!product) {
-      throw createError(404, "One of the selected products was not found");
+    if (!product || !product.isActive) {
+      throw createError(404, "One of the selected products was not found or is inactive");
     }
 
     const requestedQuantity = Number(item.quantity);
@@ -48,68 +58,135 @@ const createOrderFromItems = async ({ items, customerId, paymentStatus = "pendin
       throw createError(400, `Insufficient quantity for product: ${product.name}`);
     }
 
-    if (!farmerId) {
-      farmerId = product.farmer.toString();
-    } else if (farmerId !== product.farmer.toString()) {
-      throw createError(400, "All ordered products must belong to the same farmer");
-    }
+    validatedEntries.push({
+      product,
+      farmerId: product.farmer.toString(),
+      requestedQuantity,
+    });
+  }
 
-    normalizedItems.push({
-      product: product._id,
-      name: product.name,
-      quantity: requestedQuantity,
-      price: product.price,
+  // Atomically decrement stock with automatic rollback
+  const successfullyDeducted = [];
+  try {
+    for (const entry of validatedEntries) {
+      const updated = await Product.findOneAndUpdate(
+        { _id: entry.product._id, quantity: { $gte: entry.requestedQuantity } },
+        { $inc: { quantity: -entry.requestedQuantity } },
+        { new: true }
+      );
+
+      if (!updated) {
+        throw createError(400, `Insufficient stock for product: ${entry.product.name}`);
+      }
+
+      successfullyDeducted.push({ productId: entry.product._id, quantity: entry.requestedQuantity });
+    }
+  } catch (deductError) {
+    // Rollback any successfully decremented items
+    for (const item of successfullyDeducted) {
+      await Product.findByIdAndUpdate(item.productId, { $inc: { quantity: item.quantity } });
+    }
+    throw deductError;
+  }
+
+  // Group items by farmer for seamless multi-vendor order placement
+  const farmerGroups = new Map();
+  for (const entry of validatedEntries) {
+    if (!farmerGroups.has(entry.farmerId)) {
+      farmerGroups.set(entry.farmerId, []);
+    }
+    farmerGroups.get(entry.farmerId).push({
+      product: entry.product._id,
+      name: entry.product.name,
+      quantity: entry.requestedQuantity,
+      price: entry.product.price,
+    });
+  }
+
+  const createdOrders = [];
+  for (const [farmerId, farmerItems] of farmerGroups.entries()) {
+    const totalPrice = farmerItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const order = await Order.create({
+      customer: customerId,
+      farmer: farmerId,
+      items: farmerItems,
+      totalPrice,
+      deliveryAddress: {
+        street: deliveryAddress.street || "",
+        city: deliveryAddress.city || "",
+        pincode: deliveryAddress.pincode || "",
+        notes: deliveryAddress.notes || "",
+        contactPhone: deliveryAddress.contactPhone || "",
+        whatsappPhone: deliveryAddress.whatsappPhone || "",
+        deliverySlot: deliveryAddress.deliverySlot || "Standard Any-Time (Within 24 Hours)",
+      },
+      status: "pending",
+      paymentStatus,
+      paymentMethod,
+      payment: paymentId,
     });
 
-    productsToUpdate.push({ product, requestedQuantity });
-    totalPrice += product.price * requestedQuantity;
+    createdOrders.push(order);
   }
-
-  for (const entry of productsToUpdate) {
-    entry.product.quantity -= entry.requestedQuantity;
-    await entry.product.save();
-  }
-
-  const order = await Order.create({
-    customer: customerId,
-    farmer: farmerId,
-    items: normalizedItems,
-    totalPrice,
-    status: "pending",
-    paymentStatus,
-    paymentMethod,
-    payment: paymentId,
-  });
 
   return {
-    order,
-    farmerId,
-    itemCount: normalizedItems.length,
+    orders: createdOrders,
+    order: createdOrders[0],
+    farmerId: createdOrders[0]?.farmer?.toString(),
+    itemCount: validatedEntries.length,
   };
 };
 
+// Alias for backward compatibility
+const createOrderFromItems = createOrdersFromItems;
+
 const createOrder = asyncHandler(async (req, res) => {
-  const { order, farmerId, itemCount } = await createOrderFromItems({
+  const { orders } = await createOrdersFromItems({
     items: req.body.items,
     customerId: req.user._id,
+    deliveryAddress: req.body.deliveryAddress || {},
+    paymentMethod: "cod",
   });
 
-  const farmerNotification = await createNotification({
-    user: farmerId,
-    type: "order",
-    title: "New order placed",
-    message: `You received a new order with ${itemCount} item(s).`,
-    metadata: {
-      orderId: order._id,
-      customerId: req.user._id,
-    },
-  });
+  const customer = await User.findById(req.user._id).select("storeName phone whatsappPhone email");
 
-  emitToUser(farmerId, "notification:new", farmerNotification);
+  for (const order of orders) {
+    const farmer = await User.findById(order.farmer).select("storeName phone whatsappPhone email");
+
+    // 1. Send WhatsApp / SMS order notification to the farmer
+    sendFarmerOrderAlert({ farmer, customer, order }).catch((err) => {
+      console.warn("Failed to dispatch WhatsApp alert to farmer:", err?.message || err);
+    });
+
+    // 2. Send automated WhatsApp / SMS confirmation to the customer
+    sendCustomerOrderPlacedAlert({ customer, order, farmer }).catch((err) => {
+      console.warn("Failed to dispatch WhatsApp order confirmation to customer:", err?.message || err);
+    });
+
+    const farmerNotification = await createNotification({
+      user: order.farmer,
+      type: "order",
+      title: "New order placed",
+      message: `You received a new order with ${order.items.length} item(s).`,
+      metadata: {
+        orderId: order._id,
+        customerId: req.user._id,
+      },
+    });
+
+    emitToUser(order.farmer, "notification:new", farmerNotification);
+  }
+
+  await Order.populate(orders, { path: "farmer", select: "storeName phone whatsappPhone email" });
 
   res.status(201).json({
-    message: "Order created successfully",
-    order,
+    message:
+      orders.length > 1
+        ? `${orders.length} orders created successfully (split by farm)`
+        : "Order created successfully",
+    orders,
+    order: orders[0],
   });
 });
 
@@ -143,8 +220,40 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     throw new Error("You can only update orders assigned to your farm");
   }
 
+  if (order.status === "delivered") {
+    res.status(400);
+    throw new Error("Delivered orders cannot be modified");
+  }
+
+  if (order.status === "rejected") {
+    res.status(400);
+    throw new Error("Rejected orders cannot be modified");
+  }
+
+  // Restore inventory if farmer rejects the order
+  if (status === "rejected" && order.status !== "rejected") {
+    for (const item of order.items) {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { quantity: item.quantity },
+      });
+    }
+  }
+
   order.status = status;
   await order.save();
+
+  // Send automated WhatsApp / SMS notification to customer about their order status update
+  const customerUser = await User.findById(order.customer).select("storeName phone whatsappPhone email");
+  const farmerUser = await User.findById(order.farmer).select("storeName phone whatsappPhone email");
+
+  sendCustomerOrderStatusAlert({
+    customer: customerUser,
+    order,
+    farmer: farmerUser,
+    status,
+  }).catch((err) => {
+    console.warn("Failed to dispatch WhatsApp status alert to customer:", err?.message || err);
+  });
 
   const customerNotification = await createNotification({
     user: order.customer,
@@ -167,7 +276,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
 const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customer: req.user._id })
-    .populate("farmer", "storeName email phone")
+    .populate("farmer", "storeName email phone location isVerifiedFarmer")
     .sort({ createdAt: -1 });
   const reviewedOrders = await Review.find({ customer: req.user._id }).select("order");
   const reviewedOrderIds = new Set(reviewedOrders.map((review) => review.order.toString()));
@@ -185,7 +294,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
 
 const getReceivedOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ farmer: req.user._id })
-    .populate("customer", "storeName email phone")
+    .populate("customer", "storeName email phone location")
     .sort({ createdAt: -1 });
 
   res.json({
@@ -197,6 +306,7 @@ const getReceivedOrders = asyncHandler(async (req, res) => {
 module.exports = {
   createOrder,
   createOrderFromItems,
+  createOrdersFromItems,
   getMyOrders,
   getReceivedOrders,
   updateOrderStatus,

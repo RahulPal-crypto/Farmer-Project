@@ -117,9 +117,19 @@ const createGroupOrder = asyncHandler(async (req, res) => {
     throw new Error("Target quantity must be at least 2");
   }
 
-  if (Number.isNaN(parsedDiscountPercent) || parsedDiscountPercent <= 0 || parsedDiscountPercent > 100) {
+  if (Number.isNaN(parsedDiscountPercent) || parsedDiscountPercent < 1 || parsedDiscountPercent > 30) {
     res.status(400);
-    throw new Error("Discount percent must be between 1 and 100");
+    throw new Error("Discount percent must be between 1% and 30%");
+  }
+
+  if (product.quantity < parsedTargetQuantity) {
+    res.status(400);
+    throw new Error(`Target quantity cannot exceed available product stock (${product.quantity})`);
+  }
+
+  if (requestedQuantity > product.quantity) {
+    res.status(400);
+    throw new Error("Initial quantity cannot exceed available stock");
   }
 
   if (Number.isNaN(closingDate.getTime()) || closingDate <= new Date()) {
@@ -218,8 +228,18 @@ const joinGroupOrder = asyncHandler(async (req, res) => {
 });
 
 const listGroupOrders = asyncHandler(async (req, res) => {
-  const groupOrders = await GroupOrder.find({ status: { $in: ["open", "threshold-met"] } })
-    .populate("product", "name price image category")
+  const now = new Date();
+  // Auto-cancel past-due open group orders
+  await GroupOrder.updateMany(
+    { status: "open", closesAt: { $lte: now } },
+    { $set: { status: "cancelled" } }
+  );
+
+  const groupOrders = await GroupOrder.find({
+    status: { $in: ["open", "threshold-met"] },
+    closesAt: { $gt: now },
+  })
+    .populate("product", "name price image category quantity")
     .populate("farmer", "storeName")
     .sort({ createdAt: -1 });
 
