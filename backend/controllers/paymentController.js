@@ -13,6 +13,10 @@ const {
   sendFarmerOrderAlert,
   sendCustomerOrderPlacedAlert,
 } = require("../services/whatsappService");
+const {
+  sendCustomerOrderPlacedEmail,
+  sendFarmerNewOrderEmail,
+} = require("../services/emailService");
 
 const createError = (statusCode, message) => {
   const error = new Error(message);
@@ -183,6 +187,16 @@ const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     // 2. Send automated WhatsApp / SMS confirmation to the customer
     sendCustomerOrderPlacedAlert({ customer, order, farmer }).catch((err) => {
       console.warn("Failed to dispatch WhatsApp order confirmation to customer:", err?.message || err);
+    });
+
+    // 3. Send automated background email confirmation to Customer
+    sendCustomerOrderPlacedEmail({ customer, order, farmer }).catch((err) => {
+      console.warn("Failed to dispatch automated order email to customer:", err?.message || err);
+    });
+
+    // 4. Send automated background email alert to Farmer
+    sendFarmerNewOrderEmail({ farmer, customer, order }).catch((err) => {
+      console.warn("Failed to dispatch automated new order email to farmer:", err?.message || err);
     });
 
     const farmerNotification = await createNotification({

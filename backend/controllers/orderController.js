@@ -12,6 +12,11 @@ const {
   sendCustomerOrderPlacedAlert,
   sendCustomerOrderStatusAlert,
 } = require("../services/whatsappService");
+const {
+  sendCustomerOrderPlacedEmail,
+  sendFarmerNewOrderEmail,
+  sendCustomerOrderStatusEmail,
+} = require("../services/emailService");
 
 const createError = (statusCode, message) => {
   const error = new Error(message);
@@ -164,6 +169,16 @@ const createOrder = asyncHandler(async (req, res) => {
       console.warn("Failed to dispatch WhatsApp order confirmation to customer:", err?.message || err);
     });
 
+    // 3. Send automated background email confirmation to Customer
+    sendCustomerOrderPlacedEmail({ customer, order, farmer }).catch((err) => {
+      console.warn("Failed to dispatch automated order email to customer:", err?.message || err);
+    });
+
+    // 4. Send automated background email alert to Farmer
+    sendFarmerNewOrderEmail({ farmer, customer, order }).catch((err) => {
+      console.warn("Failed to dispatch automated new order email to farmer:", err?.message || err);
+    });
+
     const farmerNotification = await createNotification({
       user: order.farmer,
       type: "order",
@@ -253,6 +268,16 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     status,
   }).catch((err) => {
     console.warn("Failed to dispatch WhatsApp status alert to customer:", err?.message || err);
+  });
+
+  // Automated background Email alert to Customer about live order status update
+  sendCustomerOrderStatusEmail({
+    customer: customerUser,
+    order,
+    farmer: farmerUser,
+    status,
+  }).catch((err) => {
+    console.warn("Failed to dispatch automated status update email to customer:", err?.message || err);
   });
 
   const customerNotification = await createNotification({
