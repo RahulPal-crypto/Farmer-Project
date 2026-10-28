@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "demo:email": "node scripts/demoOrderEmail.js",
     "seed:prices": "node scripts/seedMarketPrices.js",
     "test:whatsapp": "node scripts/testWhatsApp.js",
     "test": "echo \"No automated tests configured yet\""

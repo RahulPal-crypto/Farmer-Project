@@ -11,6 +11,7 @@ const {
   toggleUserStatus,
   triggerMandiSync,
   getPlatformAnalytics,
+  sendTestEmail,
 } = require("../controllers/adminController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
@@ -26,5 +27,6 @@ router.delete("/product/:id", adminDeleteProduct);
 router.get("/farmers/verifications", getFarmerVerifications);
 router.put("/farmers/:farmerId/verification", reviewFarmerVerification);
 router.post("/sync-mandi-prices", triggerMandiSync);
+router.post("/test-email", sendTestEmail);
 
 module.exports = router;

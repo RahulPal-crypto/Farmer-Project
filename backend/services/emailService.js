@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const axios = require("axios");
 
 /**
  * Configure email transporter
@@ -44,15 +45,57 @@ const sendMailAsync = async ({ to, subject, html, text }) => {
     return { success: false, reason: "No recipient email" };
   }
 
-  const transporter = getTransporter();
   const userEmail = process.env.EMAIL_USER || "palrahul860478@gmail.com";
+  const fromName = "KrishiSetu (कृषिसेतु)";
+
+  // METHOD 1: Brevo HTTPS REST API (Port 443 - Works 100% on Render Free Tier where SMTP ports are blocked)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const payload = {
+        sender: {
+          name: fromName,
+          email: userEmail,
+        },
+        to: [{ email: to }],
+        replyTo: {
+          email: userEmail,
+          name: fromName,
+        },
+        subject,
+        htmlContent: html,
+        textContent: text || "KrishiSetu Order Notification",
+      };
+
+      const res = await axios.post("https://api.brevo.com/v3/smtp/email", payload, {
+        headers: {
+          accept: "application/json",
+          "api-key": process.env.BREVO_API_KEY.trim(),
+          "content-type": "application/json",
+        },
+        timeout: 12000,
+      });
+
+      const messageId = res.data?.messageId || "brevo-sent";
+      console.log(`[Email Dispatched via Brevo HTTPS] Successfully sent to ${to} (MessageId: ${messageId})`);
+      return { success: true, messageId };
+    } catch (apiError) {
+      console.error(
+        `[Brevo API Error] Failed to dispatch email to ${to}:`,
+        apiError.response?.data?.message || apiError.response?.data || apiError.message
+      );
+      // Fall through to SMTP attempt
+    }
+  }
+
+  // METHOD 2: Nodemailer SMTP (Works on Localhost and servers with open SMTP ports)
+  const transporter = getTransporter();
   let fromHeader = process.env.EMAIL_FROM || `"KrishiSetu" <${userEmail}>`;
   if (typeof fromHeader === "string") {
     fromHeader = fromHeader.trim().replace(/^"|"$/g, "");
   }
 
   if (!transporter) {
-    console.log(`[Email Simulation] Real email skipped (EMAIL_USER / EMAIL_PASS not in .env).`);
+    console.log(`[Email Simulation] Real email skipped (No BREVO_API_KEY or EMAIL_USER/EMAIL_PASS).`);
     console.log(`   To: ${to}`);
     console.log(`   Subject: ${subject}`);
     return { success: true, simulated: true };
@@ -67,7 +110,7 @@ const sendMailAsync = async ({ to, subject, html, text }) => {
       text: text || "KrishiSetu Order Notification",
       html,
     });
-    console.log(`[Email Dispatched] Successfully sent email to ${to} (MessageId: ${info.messageId})`);
+    console.log(`[Email Dispatched via SMTP] Successfully sent to ${to} (MessageId: ${info.messageId})`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error(`[Email Error] Failed to send email to ${to}:`, error.message);

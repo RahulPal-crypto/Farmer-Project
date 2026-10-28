@@ -4,6 +4,7 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const User = require("../models/User");
 const asyncHandler = require("../middleware/asyncHandler");
+const { sendCustomerOrderPlacedEmail } = require("../services/emailService");
 
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find().select("-password").sort({ createdAt: -1 });
@@ -208,6 +209,32 @@ const getPlatformAnalytics = asyncHandler(async (req, res) => {
   });
 });
 
+const sendTestEmail = asyncHandler(async (req, res) => {
+  const targetEmail = req.body.to || req.user.email;
+  const mockOrder = {
+    _id: "6ae1d2ff27652ebf0468ced3",
+    items: [{ name: "Organic Tomatoes", quantity: 2, unit: "kg", price: 40 }],
+    totalPrice: 80,
+    paymentMethod: "cod",
+    deliveryAddress: { street: "Krishi Marg", city: "Kanpur", pincode: "208001" },
+  };
+  const mockCustomer = { name: "Test Customer", email: targetEmail };
+  const mockFarmer = { storeName: "KrishiSetu Partner Farm", phone: "9876543210" };
+
+  const result = await sendCustomerOrderPlacedEmail({
+    customer: mockCustomer,
+    order: mockOrder,
+    farmer: mockFarmer,
+  });
+
+  res.json({
+    message: result?.success ? "Test email dispatched successfully!" : "Failed to dispatch test email",
+    provider: process.env.BREVO_API_KEY ? "Brevo HTTPS API (Port 443)" : "Nodemailer SMTP",
+    target: targetEmail,
+    result,
+  });
+});
+
 module.exports = {
   getAllUsers,
   adminDeleteProduct,
@@ -218,4 +245,5 @@ module.exports = {
   toggleUserStatus,
   triggerMandiSync,
   getPlatformAnalytics,
+  sendTestEmail,
 };
