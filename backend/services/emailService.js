@@ -45,7 +45,11 @@ const sendMailAsync = async ({ to, subject, html, text }) => {
   }
 
   const transporter = getTransporter();
-  const from = process.env.EMAIL_FROM || `"KrishiSetu (कृषिसेतु)" <${process.env.EMAIL_USER || "notifications@krishisetu.com"}>`;
+  const userEmail = process.env.EMAIL_USER || "palrahul860478@gmail.com";
+  let fromHeader = process.env.EMAIL_FROM || `"KrishiSetu" <${userEmail}>`;
+  if (typeof fromHeader === "string") {
+    fromHeader = fromHeader.trim().replace(/^"|"$/g, "");
+  }
 
   if (!transporter) {
     console.log(`[Email Simulation] Real email skipped (EMAIL_USER / EMAIL_PASS not in .env).`);
@@ -56,7 +60,8 @@ const sendMailAsync = async ({ to, subject, html, text }) => {
 
   try {
     const info = await transporter.sendMail({
-      from,
+      from: fromHeader,
+      replyTo: userEmail,
       to,
       subject,
       text: text || "KrishiSetu Order Notification",
