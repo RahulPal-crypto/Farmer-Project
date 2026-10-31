@@ -212,6 +212,20 @@ const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     });
 
     emitToUser(order.farmer, "notification:new", farmerNotification);
+    emitToUser(order.farmer, "order:new", {
+      _id: order._id,
+      customer: {
+        storeName: req.user.storeName,
+        phone: req.user.phone,
+        email: req.user.email,
+      },
+      items: order.items,
+      totalPrice: order.totalPrice,
+      deliveryAddress: order.deliveryAddress,
+      status: order.status,
+      paymentMethod: "razorpay",
+      createdAt: order.createdAt,
+    });
   }
 
   const Order = require("../models/Order");

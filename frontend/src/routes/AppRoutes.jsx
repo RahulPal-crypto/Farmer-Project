@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
+import IncomingOrderRinger from "../components/IncomingOrderRinger";
 import PrivateRoute from "./PrivateRoute";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AddProductPage from "../pages/farmer/AddProductPage";
@@ -26,6 +27,7 @@ import TermsPage from "../pages/shared/TermsPage";
 function AppRoutes() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      <IncomingOrderRinger />
       <Navbar />
       <main className="mx-auto w-full max-w-7xl 2xl:max-w-[1536px] 3xl:max-w-[1780px] px-3.5 py-4 sm:px-6 sm:py-6 lg:px-8 2xl:px-10">
         <Routes>
