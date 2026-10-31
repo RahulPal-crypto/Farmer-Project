@@ -341,11 +341,34 @@ const getReceivedOrders = asyncHandler(async (req, res) => {
   });
 });
 
+const getOrderById = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id)
+    .populate("customer", "storeName email phone location")
+    .populate("farmer", "storeName email phone location isVerifiedFarmer");
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (
+    order.customer._id.toString() !== req.user._id.toString() &&
+    order.farmer._id.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
+    res.status(403);
+    throw new Error("Not authorized to view this order");
+  }
+
+  res.json({ order });
+});
+
 module.exports = {
   createOrder,
   createOrderFromItems,
   createOrdersFromItems,
   getMyOrders,
   getReceivedOrders,
+  getOrderById,
   updateOrderStatus,
 };

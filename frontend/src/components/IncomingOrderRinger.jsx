@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
-import { getBackendBaseUrl } from "../services/api";
+import api, { getBackendBaseUrl } from "../services/api";
 import { updateOrderStatus } from "../services/orderService";
 
 // Real Telephone Dual-Tone Ringtone Synthesizer (Web Audio API)
@@ -312,18 +312,21 @@ export default function IncomingOrderRinger() {
     });
 
     socket.on("order:new", (order) => {
+      // Direct real dynamic order from customer checkout
       triggerIncomingCall(order);
     });
 
-    socket.on("notification:new", (notif) => {
-      if (notif.type === "order" && !incomingOrder) {
-        triggerIncomingCall({
-          _id: notif.metadata?.orderId,
-          customer: { storeName: "Customer" },
-          items: [{ name: notif.title || "Fresh Harvest Produce", quantity: 1 }],
-          totalPrice: notif.message?.match(/\d+/)?.[0] || 50,
-          deliveryAddress: { street: "Customer Destination", city: "Local Town" },
-        });
+    socket.on("notification:new", async (notif) => {
+      if (notif.type === "order" && notif.metadata?.orderId && !incomingOrder) {
+        try {
+          // Fetch the 100% REAL dynamic order from MongoDB by orderId
+          const { data } = await api.get(`/orders/${notif.metadata.orderId}`);
+          if (data?.order) {
+            triggerIncomingCall(data.order);
+          }
+        } catch (err) {
+          console.warn("Could not fetch real dynamic order:", err);
+        }
       }
     });
 
@@ -332,27 +335,50 @@ export default function IncomingOrderRinger() {
     };
   }, [token, user?.role, triggerIncomingCall, incomingOrder]);
 
-  // Demo Trigger for instant testing
-  const triggerDemoRing = () => {
-    const demo = {
-      _id: "demo_" + Date.now(),
-      isDemo: true,
-      customer: {
-        storeName: "Rahul Pal (Customer)",
-        phone: "6307512296",
-      },
-      items: [
-        { name: isHindi ? "देसी टमाटर (Desi Tomato)" : "Desi Tomato", quantity: 2, price: 40 },
-        { name: isHindi ? "ताज़ा आलू (Fresh Potato)" : "Fresh Potato", quantity: 1, price: 25 },
-      ],
-      totalPrice: 105,
-      deliveryAddress: {
-        street: "Chaubepur Road, Near Shiv Temple",
-        city: "Kanpur",
-        deliverySlot: "Morning Harvest (7:00 AM - 10:00 AM)",
-      },
-    };
-    triggerIncomingCall(demo);
+  // Dynamic Trigger for testing using real database records
+  const triggerDynamicRing = async () => {
+    try {
+      // 1. Check if farmer has any real received orders in MongoDB
+      const { data: orderData } = await api.get("/orders/received");
+      if (orderData?.orders && orderData.orders.length > 0) {
+        // Use the farmer's latest real order from the database!
+        const latestRealOrder = orderData.orders[0];
+        triggerIncomingCall(latestRealOrder);
+        return;
+      }
+
+      // 2. If no orders exist yet, fetch the farmer's actual listed products from MongoDB
+      const { data: prodData } = await api.get("/products/mine");
+      if (prodData?.products && prodData.products.length > 0) {
+        const p1 = prodData.products[0];
+        const p2 = prodData.products[1] || null;
+        const dynamicItems = [{ name: p1.name, quantity: 2, price: p1.price }];
+        let total = p1.price * 2;
+        if (p2) {
+          dynamicItems.push({ name: p2.name, quantity: 1, price: p2.price });
+          total += p2.price;
+        }
+
+        triggerIncomingCall({
+          _id: "preview_" + Date.now(),
+          isDemo: true,
+          customer: {
+            storeName: user?.storeName ? `Buyer for ${user.storeName}` : "Local Buyer",
+            phone: user?.phone || "Customer",
+          },
+          items: dynamicItems,
+          totalPrice: total,
+          deliveryAddress: {
+            street: "Direct Farm Proximity",
+            city: user?.location?.city || (isHindi ? "स्थानीय सेवा क्षेत्र" : "Service Radius"),
+            deliverySlot: "Morning Harvest (7:00 AM - 10:00 AM)",
+          },
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn("Could not load dynamic data from database:", err);
+    }
   };
 
   // Only render for logged-in farmers
@@ -366,7 +392,7 @@ export default function IncomingOrderRinger() {
       <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
         <button
           type="button"
-          onClick={triggerDemoRing}
+          onClick={triggerDynamicRing}
           className="flex items-center gap-2 rounded-full border-2 border-emerald-500 bg-white px-4 py-2.5 text-xs font-black text-emerald-800 shadow-xl hover:bg-emerald-50 active:scale-95 transition"
           title="तुरंत घंटी बजाकर इनकमिंग कॉल टेस्ट करें"
         >
@@ -489,3 +515,4 @@ export default function IncomingOrderRinger() {
     </>
   );
 }
+

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
-import { getBackendBaseUrl } from "../services/api";
+import api, { getBackendBaseUrl } from "../services/api";
 
 // Web Audio API dual-tone chime
 const playNotificationChime = () => {
@@ -330,27 +330,52 @@ export default function VoiceOrderAssistant({ onOrderAccepted, onOrderRejected, 
     };
   }, [token, isEnabled, user?.role, processIncomingOrder, activeOrder, availableOrders]);
 
-  // Demo Trigger for Instant Testing
-  const handleTestDemoOrder = () => {
-    const demoOrder = {
-      _id: "demo_" + Date.now(),
-      isDemo: true,
-      customer: {
-        storeName: "Rahul Pal (कानपुर)",
-        phone: "6307512296",
-      },
-      items: [
-        { name: "Desi Tomato (देसी टमाटर)", quantity: 2, price: 40 },
-        { name: "Fresh Potato (आलू)", quantity: 1, price: 25 },
-      ],
-      totalPrice: 105,
-      deliveryAddress: {
-        street: "Chaubepur Road, Near Shiv Temple",
-        city: "Kanpur",
-        deliverySlot: "Morning Harvest (7:00 AM - 10:00 AM)",
-      },
-    };
-    processIncomingOrder(demoOrder);
+  // Dynamic Trigger for Instant Testing using Real Database Records
+  const handleTestDemoOrder = async () => {
+    try {
+      // 1. If orders are already loaded or in database, use the farmer's real order
+      if (availableOrders && availableOrders.length > 0) {
+        processIncomingOrder(availableOrders[0]);
+        return;
+      }
+      const { data: orderData } = await api.get("/orders/received");
+      if (orderData?.orders && orderData.orders.length > 0) {
+        processIncomingOrder(orderData.orders[0]);
+        return;
+      }
+
+      // 2. Or use the farmer's actual listed products from MongoDB
+      const { data: prodData } = await api.get("/products/mine");
+      if (prodData?.products && prodData.products.length > 0) {
+        const p1 = prodData.products[0];
+        const p2 = prodData.products[1] || null;
+        const dynamicItems = [{ name: p1.name, quantity: 2, price: p1.price }];
+        let total = p1.price * 2;
+        if (p2) {
+          dynamicItems.push({ name: p2.name, quantity: 1, price: p2.price });
+          total += p2.price;
+        }
+
+        processIncomingOrder({
+          _id: "preview_" + Date.now(),
+          isDemo: true,
+          customer: {
+            storeName: user?.storeName ? `Buyer for ${user.storeName}` : "Marketplace Customer",
+            phone: user?.phone || "Customer",
+          },
+          items: dynamicItems,
+          totalPrice: total,
+          deliveryAddress: {
+            street: "Direct Farm Proximity",
+            city: user?.location?.city || (isHindi ? "स्थानीय क्षेत्र" : "Service Radius"),
+            deliverySlot: "Morning Harvest (7:00 AM - 10:00 AM)",
+          },
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn("Could not fetch real dynamic data for voice test:", e);
+    }
   };
 
   return (
