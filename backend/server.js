@@ -90,8 +90,12 @@ initSocket(server);
 
 app.set("trust proxy", 1);
 
-const allowedOrigins = (process.env.CLIENT_URL || "")
-  .split(",")
+const allowedOrigins = [
+  "https://farmer-project-gamma.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  ...(process.env.CLIENT_URL || "").split(","),
+]
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 

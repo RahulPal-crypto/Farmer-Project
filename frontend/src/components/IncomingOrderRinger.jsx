@@ -125,6 +125,59 @@ export default function IncomingOrderRinger() {
   const [actionFeedback, setActionFeedback] = useState(null);
 
   const recognitionRef = useRef(null);
+  const seenOrderIdsRef = useRef(new Set());
+  const initialLoadDoneRef = useRef(false);
+
+  // 1. Initial seed of existing order IDs so we only ring for NEW incoming orders
+  useEffect(() => {
+    if (!token || user?.role !== "farmer") return;
+
+    let mounted = true;
+    api
+      .get("/orders/received")
+      .then(({ data }) => {
+        if (!mounted || !data?.orders) return;
+        data.orders.forEach((o) => seenOrderIdsRef.current.add(String(o._id)));
+        initialLoadDoneRef.current = true;
+      })
+      .catch(() => {
+        initialLoadDoneRef.current = true;
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [token, user?.role]);
+
+  // 2. High-speed 3.5s background polling fallback (Guaranteed automatic ring even if WebSocket drops!)
+  useEffect(() => {
+    if (!token || user?.role !== "farmer") return;
+
+    const interval = setInterval(async () => {
+      if (!initialLoadDoneRef.current || incomingOrder) return;
+
+      try {
+        const { data } = await api.get("/orders/received");
+        if (!data?.orders) return;
+
+        for (const o of data.orders) {
+          const idStr = String(o._id);
+          if (!seenOrderIdsRef.current.has(idStr)) {
+            seenOrderIdsRef.current.add(idStr);
+            // If it's a pending order, TRIGGER THE LOUD RING AUTOMATICALLY!
+            if (o.status === "pending") {
+              triggerIncomingCall(o);
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        // silent polling error
+      }
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [token, user?.role, incomingOrder, triggerIncomingCall]);
 
   // Auto-unlock AudioContext on any interaction with window
   useEffect(() => {

@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL?.trim() ||
-  (import.meta.env.DEV ? "http://localhost:5000/api" : "/api");
+  (import.meta.env.DEV ? "http://localhost:5000/api" : "https://farmer-project-2d84.onrender.com/api");
 
 const removeTrailingSlash = (value) => value.replace(/\/+$/, "");
 
