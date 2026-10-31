@@ -6,12 +6,14 @@ import WeatherWidget from "../../components/WeatherWidget";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import api, { getApiErrorMessage } from "../../services/api";
 import { fetchMyProducts } from "../../services/productService";
 import { fetchFarmerReviews } from "../../services/reviewService";
 
 function FarmerDashboardPage() {
   const { user } = useAuth();
+  const { t, isHindi } = useLanguage();
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -43,48 +45,68 @@ function FarmerDashboardPage() {
 
   const stats = useMemo(
     () => [
-      { label: "Products Listed", value: products.length },
-      { label: "Orders Received", value: orders.length },
-      { label: "Pending Orders", value: orders.filter((order) => order.status === "pending").length },
+      { label: t("farmer_stat_listed", "Products Listed"), value: products.length },
+      { label: t("farmer_stat_orders", "Orders Received"), value: orders.length },
       {
-        label: "Estimated Sales",
-        value: `Rs. ${orders
+        label: t("farmer_stat_pending", "Pending Orders"),
+        value: orders.filter((order) => order.status === "pending").length,
+      },
+      {
+        label: t("farmer_stat_sales", "Estimated Sales"),
+        value: `₹${orders
           .reduce((total, order) => total + Number(order.discountedTotalPrice || order.totalPrice || 0), 0)
           .toFixed(0)}`,
       },
     ],
-    [products, orders]
+    [products, orders, t]
   );
+
   const lowStockProducts = products.filter((product) => Number(product.quantity || 0) <= 5);
   const actionableOrders = orders.filter((order) => ["accepted", "rejected"].includes(order.status));
   const acceptanceRate = actionableOrders.length
-    ? Math.round((actionableOrders.filter((order) => order.status === "accepted").length / actionableOrders.length) * 100)
+    ? Math.round(
+        (actionableOrders.filter((order) => order.status === "accepted").length / actionableOrders.length) * 100
+      )
     : null;
   const averageRating = reviews.length
     ? (reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
     : user?.averageRating || null;
 
   if (loading) {
-    return <LoadingSpinner label="Loading dashboard..." />;
+    return <LoadingSpinner label={isHindi ? "डैशबोर्ड लोड हो रहा है..." : "Loading dashboard..."} />;
   }
 
   return (
     <div className="space-y-8">
       {/* Workspace Hero Banner */}
       <section className="rounded-3xl sm:rounded-4xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-lime-600 p-5 sm:p-8 lg:p-10 text-white shadow-xl shadow-emerald-900/20">
-        <p className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-emerald-100">Farmer workspace</p>
+        <p className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-emerald-100">
+          {t("farmer_dash_workspace", "Farmer Workspace")}
+        </p>
         <h1 className="mt-3 max-w-3xl text-2xl sm:text-4xl lg:text-5xl font-black leading-tight">
-          Manage inventory, orders, reviews, and sales from one dashboard.
+          {t(
+            "farmer_dash_banner_title",
+            "Manage inventory, orders, reviews, and sales from one dashboard."
+          )}
         </h1>
         <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-6 text-emerald-50">
-          Keep listings fresh, track low stock, accept orders quickly, and build trust through customer ratings.
+          {t(
+            "farmer_dash_banner_subtitle",
+            "Keep listings fresh, track low stock, accept orders quickly, and build trust through customer ratings."
+          )}
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link to="/farmer/add-product" className="rounded-2xl bg-white px-5 py-2.5 sm:py-3 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50">
-            + Add Product
+          <Link
+            to="/farmer/add-product"
+            className="rounded-2xl bg-white px-5 py-2.5 sm:py-3 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 transition"
+          >
+            {t("farmer_btn_add_product", "+ Add Product")}
           </Link>
-          <Link to="/farmer/orders" className="rounded-2xl border border-white/30 px-5 py-2.5 sm:py-3 text-sm font-semibold text-white hover:bg-white/10">
-            View Orders
+          <Link
+            to="/farmer/orders"
+            className="rounded-2xl border border-white/30 px-5 py-2.5 sm:py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+          >
+            {t("farmer_btn_view_orders", "View Orders")}
           </Link>
         </div>
       </section>
@@ -109,15 +131,21 @@ function FarmerDashboardPage() {
 
       {/* Market Prices Benchmark */}
       <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-900">Market Price Benchmark</h2>
-        <p className="mt-2 text-sm text-slate-500">Current government mandi rates for your listed commodities.</p>
+        <h2 className="text-2xl font-bold text-slate-900">
+          {t("farmer_sec_mandi_benchmark", "Market Price Benchmark")}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          {t("farmer_sec_mandi_desc", "Current government Mandi rates for your listed commodities.")}
+        </p>
         <div className="mt-4 grid gap-3">
           {products.slice(0, 6).map((product) => (
             <div key={product._id} className="rounded-2xl bg-slate-50 p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{product.name}</p>
-                  <p className="text-sm text-slate-500">Your price: Rs. {product.price}</p>
+                  <p className="text-sm text-slate-500">
+                    {isHindi ? `आपका दाम: ₹${product.price}` : `Your price: Rs. ${product.price}`}
+                  </p>
                 </div>
                 <div>
                   <MarketPriceBadge commodityKey={product.commodityKey} productPrice={product.price} />
@@ -131,35 +159,45 @@ function FarmerDashboardPage() {
       {/* Inventory & Sales Analytics */}
       <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-black text-slate-900">Inventory Tracking</h2>
+          <h2 className="text-2xl font-black text-slate-900">
+            {t("farmer_sec_inventory", "Inventory Tracking")}
+          </h2>
           {lowStockProducts.length === 0 ? (
             <p className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
-              Inventory looks healthy. No low-stock alerts.
+              {t("farmer_sec_inventory_healthy", "Inventory looks healthy. No low-stock alerts.")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
               {lowStockProducts.slice(0, 4).map((product) => (
                 <div key={product._id} className="flex items-center justify-between rounded-2xl bg-amber-50 p-4">
                   <span className="font-bold text-slate-900">{product.name}</span>
-                  <span className="text-sm font-black text-amber-700">{product.quantity} left</span>
+                  <span className="text-sm font-black text-amber-700">
+                    {product.quantity} {t("farmer_sec_inventory_left", "left in stock")}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-black text-slate-900">Sales Analytics</h2>
+          <h2 className="text-2xl font-black text-slate-900">
+            {t("farmer_sec_sales_analytics", "Sales Analytics")}
+          </h2>
           <div className="mt-4 grid gap-3">
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-sm font-bold text-slate-500">Acceptance Rate</p>
+              <p className="text-sm font-bold text-slate-500">
+                {t("farmer_sec_acceptance_rate", "Acceptance Rate")}
+              </p>
               <p className="mt-1 text-2xl font-black text-slate-900">
-                {acceptanceRate === null ? "No data" : `${acceptanceRate}%`}
+                {acceptanceRate === null ? (isHindi ? "डेटा नहीं" : "No data") : `${acceptanceRate}%`}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-sm font-bold text-slate-500">Avg. Rating</p>
+              <p className="text-sm font-bold text-slate-500">
+                {t("farmer_sec_avg_rating", "Avg. Customer Rating")}
+              </p>
               <p className="mt-1 text-2xl font-black text-slate-900">
-                {averageRating ? `${averageRating}/5` : "No ratings"}
+                {averageRating ? `${averageRating}/5` : isHindi ? "कोई रेटिंग नहीं" : "No ratings"}
               </p>
             </div>
           </div>
@@ -170,18 +208,23 @@ function FarmerDashboardPage() {
       <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Customer Reviews</h2>
-            <p className="mt-1 text-sm text-slate-500">Recent feedback from delivered orders.</p>
+            <h2 className="text-2xl font-bold text-slate-900">
+              {t("farmer_sec_reviews", "Customer Reviews")}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {t("farmer_sec_reviews_recent", "Recent feedback from delivered orders.")}
+            </p>
           </div>
           <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-            {averageRating ? `${averageRating}/5 rating` : "No ratings yet"}
+            {averageRating ? `${averageRating}/5 rating` : isHindi ? "कोई रेटिंग नहीं" : "No ratings yet"}
           </div>
         </div>
 
         {reviews.length === 0 ? (
           <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-            <p className="font-medium text-slate-700">No reviews yet</p>
-            <p className="mt-1 text-sm text-slate-500">Reviews will appear after customers rate delivered orders.</p>
+            <p className="font-medium text-slate-700">
+              {t("farmer_sec_reviews_empty", "No reviews yet. Reviews appear once orders are delivered.")}
+            </p>
           </div>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -194,7 +237,7 @@ function FarmerDashboardPage() {
                   </span>
                 </div>
                 <p className="mt-3 text-sm text-slate-600">
-                  {review.comment || "No written comment provided."}
+                  {review.comment || (isHindi ? "कोई टिप्पणी नहीं लिखी गई।" : "No written comment provided.")}
                 </p>
               </article>
             ))}

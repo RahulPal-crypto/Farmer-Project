@@ -560,21 +560,46 @@ function CustomerHomePage() {
       </section>
 
       <section className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        {trustHighlights.map(([Icon, title, text]) => (
+        {[
+          [
+            FaTractor,
+            isHindi ? "किसान सूचियां" : "Farmer Listings",
+            isHindi
+              ? "सीधे किसानों द्वारा जोड़ी गई ताज़ा उपज की लाइव सूची"
+              : "Products are shown from the live marketplace database",
+          ],
+          [
+            FaShieldAlt,
+            isHindi ? "सुरक्षित भुगतान" : "Secure Payments",
+            isHindi
+              ? "सुरक्षित ऑनलाइन व कैश ऑन डिलीवरी (COD) भुगतान विकल्प"
+              : "Checkout is connected through Razorpay order flow",
+          ],
+          [
+            FaTruck,
+            isHindi ? "लाइव ऑर्डर ट्रैकिंग" : "Order Tracking",
+            isHindi
+              ? "ऑर्डर की स्थिति ट्रैक करें और किसान से सीधी बात करें"
+              : "Customers can follow purchases and chat with farmers",
+          ],
+          [
+            FaMapMarkerAlt,
+            isHindi ? "स्थान अनुसार फ़िल्टर" : "Location Filters",
+            isHindi
+              ? "दूरी, श्रेणी व मूल्य के अनुसार नज़दीकी खेत खोजें"
+              : "Browse products by category, price, and nearby farms",
+          ],
+        ].map(([Icon, title, text]) => (
           <article
             key={title}
             className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="flex items-start gap-4">
-              {/* Icon */}
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lime-50 text-emerald-700">
                 <Icon className="text-xl" />
               </div>
-
-              {/* Content */}
               <div>
                 <h3 className="font-bold text-slate-900">{title}</h3>
-
                 <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
               </div>
             </div>
@@ -586,10 +611,10 @@ function CustomerHomePage() {
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-black text-slate-950">
-              Shop by Category
+              {t("cat_section_title", "Shop by Category")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Browse fresh products from a wide range of categories
+              {t("cat_section_subtitle", "Browse fresh products from a wide range of categories")}
             </p>
           </div>
           <button
@@ -600,7 +625,7 @@ function CustomerHomePage() {
             }}
             className="inline-flex items-center gap-2 rounded-full px-1 text-sm font-black text-emerald-700 hover:text-emerald-800"
           >
-            View all categories
+            {isHindi ? "सभी श्रेणियां देखें" : "View all categories"}
             <FaArrowRight className="text-xs" />
           </button>
         </div>
@@ -685,17 +710,23 @@ function CustomerHomePage() {
               }`}
             >
               <FaLocationArrow className="text-[10px]" />
-              <span>{locating ? "Locating..." : "Near My Location"}</span>
+              <span>{locating ? (isHindi ? "खोज रहे हैं..." : "Locating...") : (isHindi ? "मेरी लोकेशन" : "Near My Location")}</span>
             </button>
           </div>
           <span className="text-xs text-slate-500 font-semibold">
-            {browseAll ? "Showing all live harvest across marketplace" : `Filtering farms within ${filters.radius} km`}
+            {browseAll
+              ? isHindi
+                ? "बाज़ार की सभी ताज़ा फसलें दिखाई जा रही हैं"
+                : "Showing all live harvest across marketplace"
+              : isHindi
+              ? `${filters.radius} किमी के दायरे में खेत खोज रहे हैं`
+              : `Filtering farms within ${filters.radius} km`}
           </span>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
           <label className="grid gap-1 text-sm font-bold text-slate-500">
-            {isHindi ? "श्रेणी (Category)" : "Category"}
+            {t("filter_category_label", "Category")}
             <select
               name="category"
               value={filters.category}
@@ -711,44 +742,44 @@ function CustomerHomePage() {
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold text-slate-500">
-            Price
+            {t("filter_price_label", "Price")}
             <select
               value={priceRangeValue}
               onChange={handlePriceRangeChange}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-800 outline-none"
             >
-              <option value="">All Prices</option>
-              <option value="0-25">Under Rs. 25</option>
-              <option value="25-50">Rs. 25 - Rs. 50</option>
-              <option value="50-100">Rs. 50 - Rs. 100</option>
-              <option value="100-">Above Rs. 100</option>
+              <option value="">{t("filter_price_all", "All Prices")}</option>
+              <option value="0-25">{isHindi ? "₹25 से कम" : "Under Rs. 25"}</option>
+              <option value="25-50">{isHindi ? "₹25 - ₹50" : "Rs. 25 - Rs. 50"}</option>
+              <option value="50-100">{isHindi ? "₹50 - ₹100" : "Rs. 50 - Rs. 100"}</option>
+              <option value="100-">{isHindi ? "₹100 से अधिक" : "Above Rs. 100"}</option>
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold text-slate-500">
-            Distance
+            {t("filter_radius_label", "Distance")}
             <select
               name="radius"
               value={filters.radius}
               onChange={handleChange}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-800 outline-none"
             >
-              <option value="5">Within 5 km</option>
-              <option value="10">Within 10 km</option>
-              <option value="20">Within 20 km</option>
-              <option value="50">Within 50 km</option>
+              <option value="5">{t("filter_radius_5", "Within 5 km")}</option>
+              <option value="10">{t("filter_radius_10", "Within 10 km")}</option>
+              <option value="20">{t("filter_radius_20", "Within 20 km")}</option>
+              <option value="50">{t("filter_radius_50", "Within 50 km")}</option>
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold text-slate-500">
-            Sort By
+            {t("filter_sort_label", "Sort By")}
             <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-800 outline-none"
             >
-              <option value="newest">Newest First</option>
-              <option value="nearest">Nearest Farms</option>
-              <option value="price-low">Price Low to High</option>
-              <option value="rating">Top Rated</option>
+              <option value="newest">{t("filter_sort_newest", "Newest First")}</option>
+              <option value="nearest">{t("filter_sort_distance", "Nearest Farms")}</option>
+              <option value="price-low">{t("filter_sort_price_low", "Price Low to High")}</option>
+              <option value="rating">{t("filter_sort_rating", "Top Rated")}</option>
             </select>
           </label>
           <button
@@ -757,7 +788,7 @@ function CustomerHomePage() {
             disabled={locating}
             className="h-12 w-full rounded-xl border border-emerald-500 px-6 text-sm font-black text-emerald-700 hover:bg-emerald-50 md:mt-6 md:w-auto xl:min-w-48"
           >
-            {locating ? "Locating..." : "Use My Location"}
+            {locating ? (isHindi ? "खोज रहे हैं..." : "Locating...") : (isHindi ? "📍 मेरी लोकेशन लगाएं" : "Use My Location")}
           </button>
         </div>
       </section>
@@ -936,20 +967,27 @@ function CustomerHomePage() {
           <div>
             <h2 className="text-2xl font-black text-slate-950">
               {selectedProduce
-                ? `${selectedProduce} from Local Growers`
+                ? isHindi
+                  ? `स्थानीय किसानों से ${selectedProduce}`
+                  : `${selectedProduce} from Local Growers`
                 : filters.category
-                ? `${filters.category} Harvest`
-                : "Featured Products"}
+                ? isHindi
+                  ? `${categoryNameHindi[filters.category] || filters.category} की ताज़ा फसलें`
+                  : `${filters.category} Harvest`
+                : t("section_fresh_produce", "Featured Products")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {selectedProduce
-                ? `Compare prices, distances, and freshness across farms`
+                ? isHindi
+                  ? "विभिन्न खेतों में दाम, दूरी और ताज़गी की तुलना करें"
+                  : "Compare prices, distances, and freshness across farms"
+                : isHindi
+                ? "सत्यापित, फ़िल्टर की गई और कार्ट के लिए तैयार ताज़ा उपज।"
                 : "Rated, filtered, and ready for cart."}
             </p>
           </div>
           <span className="rounded-full bg-lime-100 px-4 py-2 text-xs font-black text-lime-700">
-            {finalDisplayedProducts.length} live{" "}
-            {finalDisplayedProducts.length === 1 ? "listing" : "listings"}
+            {finalDisplayedProducts.length} {isHindi ? "लाइव फसलें" : finalDisplayedProducts.length === 1 ? "live listing" : "live listings"}
           </span>
         </div>
 
@@ -1048,28 +1086,31 @@ function CustomerHomePage() {
       <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-3xl bg-emerald-700 p-6 text-white">
           <p className="text-sm font-black uppercase tracking-wide text-lime-200">
-            Marketplace Activity
+            {isHindi ? "मंडी गतिविधियां" : "Marketplace Activity"}
           </p>
           <h2 className="mt-3 text-3xl font-black">
-            Real listings update as farmers add inventory.
+            {isHindi ? "किसान जैसे ही नई फसल जोड़ते हैं, वह लाइव दिखती है।" : "Real listings update as farmers add inventory."}
           </h2>
           <p className="mt-3 text-sm leading-6 text-emerald-50">
-            Product cards, stock, prices, farmer names, and locations come from
-            the backend marketplace data.
+            {isHindi
+              ? "फसल कार्ड, स्टॉक मात्रा, भाव और किसान की लोकेशन सीधे बाज़ार के वास्तविक डेटा से संचालित हैं।"
+              : "Product cards, stock, prices, farmer names, and locations come from the backend marketplace data."}
           </p>
           <a
             href="#products"
             className="mt-5 inline-flex rounded-xl bg-white px-5 py-3 text-sm font-black text-emerald-700"
           >
-            View Listings
+            {isHindi ? "फसलें देखें" : "View Listings"}
           </a>
         </div>
         <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-black text-slate-950">Active Farmers</h2>
+          <h2 className="text-2xl font-black text-slate-950">
+            {t("section_verified_farmers", "Active Farmers")}
+          </h2>
           <div className="mt-4 space-y-3">
             {topFarmers.length === 0 ? (
               <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                Farmer profiles will appear here once products are listed.
+                {isHindi ? "फसलें लिस्ट होने पर किसान प्रोफाइल यहां दिखाई देंगी।" : "Farmer profiles will appear here once products are listed."}
               </p>
             ) : (
               topFarmers.map((farmer) => (

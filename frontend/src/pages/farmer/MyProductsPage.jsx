@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import EmptyState from "../../components/EmptyState";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import { useLanguage, translateProduceName } from "../../context/LanguageContext";
 import { getApiErrorMessage } from "../../services/api";
 import { deleteProduct, fetchMyProducts, updateProduct } from "../../services/productService";
 
 function MyProductsPage() {
+  const { t, isHindi } = useLanguage();
   const [products, setProducts] = useState([]);
   const [editingProductId, setEditingProductId] = useState("");
   const [editForm, setEditForm] = useState({});
@@ -79,20 +81,23 @@ function MyProductsPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading your products..." />;
+    return <LoadingSpinner label={isHindi ? "आपकी फसलें लोड हो रही हैं..." : "Loading your products..."} />;
   }
 
   return (
     <div className="space-y-5">
       <div className="rounded-3xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-black text-slate-900">Product Management</h1>
-        <p className="mt-2 text-sm text-slate-500">Update listings, prices, activation status, and inventory levels.</p>
+        <h1 className="text-3xl font-black text-slate-900">{t("prod_mgmt_title", "Product Management")}</h1>
+        <p className="mt-2 text-sm text-slate-500">{t("prod_mgmt_desc", "Update listings, prices, activation status, and inventory levels.")}</p>
       </div>
 
       <ErrorAlert message={error} />
 
       {products.length === 0 ? (
-        <EmptyState title="No products listed" description="Add your first product to start selling." />
+        <EmptyState
+          title={t("prod_mgmt_empty_title", "No products listed")}
+          description={t("prod_mgmt_empty_desc", "Add your first product to start selling.")}
+        />
       ) : (
         <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {products.map((product) => (
@@ -130,8 +135,8 @@ function MyProductsPage() {
                     onChange={(event) => handleEditChange("isActive", event.target.value)}
                     className="w-full rounded-2xl border border-slate-200 px-4 py-3"
                   >
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
+                    <option value="true">{t("prod_mgmt_status_active", "Active (Visible in Market)")}</option>
+                    <option value="false">{t("prod_mgmt_status_inactive", "Hidden (Out of Season)")}</option>
                   </select>
                   <div className="flex flex-wrap gap-3">
                     <button
@@ -140,14 +145,14 @@ function MyProductsPage() {
                       disabled={savingProductId === product._id}
                       className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                     >
-                      Save
+                      {savingProductId === product._id ? (isHindi ? "सुरक्षित हो रहा है..." : "Saving...") : t("prod_mgmt_save", "Save Changes")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingProductId("")}
                       className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
-                      Cancel
+                      {t("prod_mgmt_cancel", "Cancel")}
                     </button>
                   </div>
                 </div>
@@ -155,7 +160,7 @@ function MyProductsPage() {
                 <>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-lg font-black text-slate-900">{product.name}</h2>
+                      <h2 className="text-lg font-black text-slate-900">{translateProduceName(product.name, isHindi)}</h2>
                       <p className="text-sm text-slate-500">{product.category}</p>
                     </div>
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
@@ -164,17 +169,19 @@ function MyProductsPage() {
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl bg-slate-50 p-3">
-                      <p className="text-xs font-bold text-slate-500">Stock</p>
+                      <p className="text-xs font-bold text-slate-500">{t("prod_stock", "Stock")}</p>
                       <p className="text-lg font-black text-slate-900">{product.quantity}</p>
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-3">
-                      <p className="text-xs font-bold text-slate-500">Status</p>
-                      <p className="text-lg font-black text-slate-900">{product.isActive ? "Active" : "Inactive"}</p>
+                      <p className="text-xs font-bold text-slate-500">{isHindi ? "स्थिति" : "Status"}</p>
+                      <p className="text-lg font-black text-slate-900">
+                        {product.isActive ? (isHindi ? "सक्रिय" : "Active") : (isHindi ? "निष्क्रिय" : "Inactive")}
+                      </p>
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-3">
-                      <p className="text-xs font-bold text-slate-500">Inventory</p>
+                      <p className="text-xs font-bold text-slate-500">{isHindi ? "इन्वेंट्री" : "Inventory"}</p>
                       <p className={`text-lg font-black ${Number(product.quantity || 0) <= 5 ? "text-amber-700" : "text-emerald-700"}`}>
-                        {Number(product.quantity || 0) <= 5 ? "Low" : "Good"}
+                        {Number(product.quantity || 0) <= 5 ? (isHindi ? "कम" : "Low") : (isHindi ? "पर्याप्त" : "Good")}
                       </p>
                     </div>
                   </div>
@@ -184,14 +191,14 @@ function MyProductsPage() {
                       onClick={() => startEditing(product)}
                       className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
-                      Edit
+                      ✏️ {t("prod_mgmt_edit", "Edit")}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(product._id)}
                       className="rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                     >
-                      Delete
+                      🗑️ {t("prod_mgmt_delete", "Delete")}
                     </button>
                   </div>
                 </>

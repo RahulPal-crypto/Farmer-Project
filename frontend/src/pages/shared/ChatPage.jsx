@@ -5,12 +5,14 @@ import { io } from "socket.io-client";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { getApiErrorMessage, getBackendBaseUrl } from "../../services/api";
 import { fetchChatHistory } from "../../services/chatService";
 
 function ChatPage() {
   const { orderId } = useParams();
   const { user, token } = useAuth();
+  const { t, isHindi } = useLanguage();
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [messages, setMessages] = useState([]);
@@ -83,18 +85,18 @@ function ChatPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading chat..." />;
+    return <LoadingSpinner label={isHindi ? "चैट लोड हो रही है..." : "Loading chat..."} />;
   }
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Order Chat</h1>
-          <p className="mt-1 text-sm text-slate-500">Order ID: {orderId}</p>
+          <h1 className="text-3xl font-bold text-slate-900">{t("chat_title", "Order Chat")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("chat_order_id", "Order ID:")} {orderId}</p>
         </div>
         <Link to={user?.role === "farmer" ? "/farmer/orders" : "/orders"} className="text-sm font-semibold text-emerald-700">
-          Back to orders
+          ← {t("chat_back_to_orders", "Back to orders")}
         </Link>
       </div>
 
@@ -103,7 +105,7 @@ function ChatPage() {
       <section className="min-h-96 rounded-3xl bg-white p-5 shadow-sm">
         {messages.length === 0 ? (
           <div className="flex min-h-64 items-center justify-center rounded-2xl bg-slate-50 text-sm text-slate-500">
-            No messages yet.
+            {t("chat_empty", "No messages yet.")}
           </div>
         ) : (
           <div className="space-y-3">
@@ -114,7 +116,7 @@ function ChatPage() {
               return (
                 <div key={chatMessage._id || `${chatMessage.createdAt}-${chatMessage.message}`} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${isMine ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-800"}`}>
-                    <p className="text-xs font-semibold opacity-80">{chatMessage.sender?.storeName || "User"}</p>
+                    <p className="text-xs font-semibold opacity-80">{chatMessage.sender?.storeName || (isMine ? (isHindi ? "आप" : "You") : (isHindi ? "उपयोगकर्ता" : "User"))}</p>
                     <p className="mt-1">{chatMessage.message}</p>
                   </div>
                 </div>
@@ -130,11 +132,11 @@ function ChatPage() {
           type="text"
           value={message}
           onChange={(event) => setMessage(event.target.value)}
-          placeholder="Type a message"
+          placeholder={t("chat_input_placeholder", "Type a message...")}
           className="min-w-0 flex-1 rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-500"
         />
         <button type="submit" className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-700">
-          Send
+          {t("chat_send_btn", "Send")}
         </button>
       </form>
     </div>

@@ -8,8 +8,10 @@ import DeliveryRouteMap from "../../components/DeliveryRouteMap";
 import api, { getApiErrorMessage } from "../../services/api";
 import { addReview } from "../../services/reviewService";
 import { formatWhatsAppUrl, buildCustomerToFarmerOrderText } from "../../utils/whatsapp";
+import { useLanguage } from "../../context/LanguageContext";
 
 function OrdersPage() {
+  const { t, isHindi } = useLanguage();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -73,21 +75,28 @@ function OrdersPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-3xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-black text-slate-900">My Orders</h1>
-        <p className="mt-2 text-sm text-slate-500">Track orders, chat with farmers, and review delivered purchases.</p>
+        <h1 className="text-3xl font-black text-slate-900">{t("orders_page_title", "My Orders")}</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          {t("orders_page_subtitle", "Track orders, chat with farmers, and review delivered purchases.")}
+        </p>
       </div>
 
       <ErrorAlert message={error} />
 
       {orders.length === 0 ? (
-        <EmptyState title="No orders yet" description="Your placed orders will appear here." />
+        <EmptyState
+          title={isHindi ? "अभी कोई ऑर्डर नहीं है" : "No orders yet"}
+          description={isHindi ? "आपके दिए गए ऑर्डर्स यहां दिखाई देंगे।" : "Your placed orders will appear here."}
+        />
       ) : (
         orders.map((order) => (
           <article key={order._id} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs sm:text-sm text-slate-500 break-all">Order ID: {order._id}</p>
-                <h2 className="text-lg font-semibold text-slate-900">{order.farmer?.storeName || "Local Farmer"}</h2>
+                <p className="text-xs sm:text-sm text-slate-500 break-all">
+                  {isHindi ? "ऑर्डर आईडी:" : "Order ID:"} {order._id}
+                </p>
+                <h2 className="text-lg font-semibold text-slate-900">{order.farmer?.storeName || (isHindi ? "स्थानीय किसान" : "Local Farmer")}</h2>
               </div>
               <span
                 className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${
@@ -101,22 +110,27 @@ function OrdersPage() {
                 }`}
               >
                 {order.status === "pending"
-                  ? "Pending Confirmation"
+                  ? t("order_status_pending", "Pending Confirmation")
                   : order.status === "accepted"
-                  ? "Accepted & Packing"
+                  ? t("order_status_accepted", "Accepted & Packing")
                   : order.status === "rejected"
-                  ? "Order Rejected"
-                  : "Delivered"}
+                  ? t("order_status_rejected", "Order Rejected")
+                  : t("order_status_delivered", "Delivered")}
               </span>
             </div>
 
             {order.status === "rejected" ? (
               <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
-                This order was rejected by the farm and cancelled.
+                {isHindi ? "यह ऑर्डर खेत द्वारा अस्वीकार कर दिया गया और रद्द हो गया।" : "This order was rejected by the farm and cancelled."}
               </div>
             ) : (
               <div className="mt-5 grid gap-2 sm:grid-cols-4">
-                {["placed", "accepted", "packed", "delivered"].map((step) => {
+                {[
+                  { id: "placed", label: isHindi ? "1. आर्डर हुआ" : "Placed" },
+                  { id: "accepted", label: isHindi ? "2. स्वीकृत" : "Accepted" },
+                  { id: "packed", label: isHindi ? "3. पैक हुआ" : "Packed" },
+                  { id: "delivered", label: isHindi ? "4. डिलीवर हुआ" : "Delivered" },
+                ].map((step) => {
                   const activeSteps = ["pending", "accepted", "delivered"].includes(order.status)
                     ? [
                         "placed",
@@ -127,12 +141,12 @@ function OrdersPage() {
 
                   return (
                     <div
-                      key={step}
+                      key={step.id}
                       className={`rounded-2xl px-3 py-2 text-xs font-black capitalize ${
-                        activeSteps.includes(step) ? "bg-emerald-100 text-emerald-700" : "bg-slate-50 text-slate-400"
+                        activeSteps.includes(step.id) ? "bg-emerald-100 text-emerald-700" : "bg-slate-50 text-slate-400"
                       }`}
                     >
-                      {step}
+                      {step.label}
                     </div>
                   );
                 })}
@@ -145,32 +159,34 @@ function OrdersPage() {
                   <span>
                     {item.name} x {item.quantity}
                   </span>
-                  <span>Rs. {(item.price * item.quantity).toFixed(2)}</span>
+                  <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
 
             {order.deliveryAddress?.street && (
               <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs text-slate-600">
-                <span className="font-bold text-slate-700">📍 Delivery Address: </span>
+                <span className="font-bold text-slate-700">📍 {isHindi ? "डिलीवरी का पता:" : "Delivery Address:"} </span>
                 <span>
                   {order.deliveryAddress.street}, {order.deliveryAddress.city} - {order.deliveryAddress.pincode}
                 </span>
                 {order.deliveryAddress.deliverySlot && (
                   <span className="mt-1 block font-semibold text-emerald-800">
-                    🕒 Slot: {order.deliveryAddress.deliverySlot}
+                    🕒 {isHindi ? "समय स्लॉट:" : "Slot:"} {order.deliveryAddress.deliverySlot}
                   </span>
                 )}
                 {order.deliveryAddress.notes && (
-                  <span className="mt-0.5 block text-slate-500 italic">Instructions: {order.deliveryAddress.notes}</span>
+                  <span className="mt-0.5 block text-slate-500 italic">
+                    {isHindi ? "निर्देश:" : "Instructions:"} {order.deliveryAddress.notes}
+                  </span>
                 )}
               </div>
             )}
 
             <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-              <span className="text-sm text-slate-500">Total</span>
+              <span className="text-sm text-slate-500">{t("cart_total", "Total")}</span>
               <span className="font-semibold text-slate-900">
-                Rs. {Number(order.discountedTotalPrice || order.totalPrice || 0).toFixed(2)}
+                ₹{Number(order.discountedTotalPrice || order.totalPrice || 0).toFixed(2)}
               </span>
             </div>
 
@@ -179,7 +195,7 @@ function OrdersPage() {
                 to={`/chat/${order._id}`}
                 className="inline-flex rounded-2xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
               >
-                In-App Chat
+                {t("order_btn_chat", "In-App Chat")}
               </Link>
               {(order.farmer?.whatsappPhone || order.farmer?.phone) && (
                 <a
@@ -192,7 +208,7 @@ function OrdersPage() {
                   className="inline-flex items-center gap-1.5 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100"
                 >
                   <span>💬</span>
-                  <span>WhatsApp Farmer</span>
+                  <span>{isHindi ? "किसान को व्हाट्सएप करें" : "WhatsApp Farmer"}</span>
                 </a>
               )}
               <button
@@ -201,7 +217,11 @@ function OrdersPage() {
                 className="inline-flex items-center gap-1.5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800 shadow-2xs hover:bg-blue-100"
               >
                 <span>🗺️</span>
-                <span>{expandedMapOrderId === order._id ? "Hide Route Map" : "View Route Map"}</span>
+                <span>
+                  {expandedMapOrderId === order._id
+                    ? isHindi ? "नक्शा छिपाएं" : "Hide Route Map"
+                    : t("order_btn_route_map", "View Route Map")}
+                </span>
               </button>
             </div>
 

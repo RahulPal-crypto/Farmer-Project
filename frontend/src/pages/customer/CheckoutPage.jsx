@@ -9,6 +9,7 @@ import { useAuth } from "../../context/AuthContext";
 import api, { getApiErrorMessage } from "../../services/api";
 import { createRazorpayOrder, verifyRazorpayPayment } from "../../services/paymentService";
 import { formatWhatsAppUrl, buildCustomerToFarmerOrderText } from "../../utils/whatsapp";
+import { useLanguage, translateProduceName } from "../../context/LanguageContext";
 
 const loadRazorpayCheckout = () => {
   return new Promise((resolve, reject) => {
@@ -28,6 +29,7 @@ const loadRazorpayCheckout = () => {
 function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, isHindi } = useLanguage();
   const { items, subtotal, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState("razorpay"); // "razorpay" | "cod"
   const [placingOrder, setPlacingOrder] = useState(false);
@@ -62,20 +64,20 @@ function CheckoutPage() {
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl shadow-inner">
           🎉
         </div>
-        <h1 className="mt-4 text-3xl font-black text-slate-900">Order Placed Successfully!</h1>
+        <h1 className="mt-4 text-3xl font-black text-slate-900">{t("checkout_order_placed_title", "Order Placed Successfully!")}</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Your direct farm harvest order has been sent to the local grower(s).
+          {t("checkout_order_placed_desc", "Your direct farm harvest order has been sent to the local grower(s).")}
         </p>
 
         <div className="mt-6 rounded-2xl bg-emerald-50/70 p-4 border border-emerald-200 text-left space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500 font-bold">Total Payable:</span>
+            <span className="text-slate-500 font-bold">{t("checkout_total_payable", "Total Payable:")}</span>
             <span className="font-black text-slate-900 text-base">
               Rs. {Number(placedSuccessData.total).toFixed(0)} ({placedSuccessData.paymentMethod.toUpperCase()})
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500 font-bold">Harvest / Delivery Slot:</span>
+            <span className="text-slate-500 font-bold">{t("checkout_harvest_slot", "Harvest / Delivery Slot:")}</span>
             <span className="font-bold text-emerald-800">
               {placedSuccessData.deliveryAddress?.deliverySlot || "Standard Any-Time"}
             </span>
@@ -88,7 +90,7 @@ function CheckoutPage() {
         {/* 1-Click WhatsApp Button for each Farm Order */}
         <div className="mt-6 space-y-3">
           <p className="text-xs font-black uppercase tracking-wider text-slate-500 text-left">
-            📲 Instant WhatsApp Dispatch (Direct to Grower):
+            📲 {t("checkout_whatsapp_dispatch_title", "Instant WhatsApp Dispatch (Direct to Grower):")}
           </p>
           {placedSuccessData.orders.map((order, idx) => {
             const farmer = order.farmer;
@@ -102,7 +104,7 @@ function CheckoutPage() {
               <div key={order._id || idx} className="rounded-2xl border border-emerald-200 bg-white p-4 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                 <div>
                   <p className="font-bold text-slate-900">🌾 {farmerName}</p>
-                  <p className="text-xs text-slate-500">Order #{String(order._id || "").slice(-6).toUpperCase()} • {order.items?.length || placedSuccessData.itemCount} item(s)</p>
+                  <p className="text-xs text-slate-500">Order #{String(order._id || "").slice(-6).toUpperCase()} • {order.items?.length || placedSuccessData.itemCount} {isHindi ? "फसलें" : "item(s)"}</p>
                 </div>
                 {waUrl ? (
                   <a
@@ -112,10 +114,10 @@ function CheckoutPage() {
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-emerald-700 transition"
                   >
                     <span>💬</span>
-                    <span>Send Order on WhatsApp</span>
+                    <span>{t("checkout_send_whatsapp_btn", "Send Order on WhatsApp")}</span>
                   </a>
                 ) : (
-                  <span className="text-xs text-slate-400 italic">Farmer phone not registered</span>
+                  <span className="text-xs text-slate-400 italic">{isHindi ? "किसान का फ़ोन नंबर उपलब्ध नहीं है" : "Farmer phone not registered"}</span>
                 )}
               </div>
             );
@@ -127,13 +129,13 @@ function CheckoutPage() {
             to="/orders"
             className="rounded-2xl bg-slate-900 px-6 py-3 font-bold text-white hover:bg-slate-800 transition"
           >
-            Go to My Orders
+            {t("checkout_goto_orders", "Go to My Orders")}
           </Link>
           <Link
             to="/"
             className="rounded-2xl border border-slate-200 px-6 py-3 font-bold text-slate-700 hover:bg-slate-50 transition"
           >
-            Continue Shopping
+            {t("checkout_continue_shopping", "Continue Shopping")}
           </Link>
         </div>
       </div>
@@ -143,11 +145,11 @@ function CheckoutPage() {
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Your cart is empty"
-        description="Add live marketplace products before starting checkout."
+        title={isHindi ? "आपका थैला (कार्ट) खाली है" : "Your cart is empty"}
+        description={isHindi ? "चेकआउट करने से पहले मार्केटप्लेस से ताज़ा फसल उत्पाद जोड़ें।" : "Add live marketplace products before starting checkout."}
         action={
           <Link to="/" className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white">
-            Browse Products
+            {t("btn_browse_products", "Browse Products")}
           </Link>
         }
       />
@@ -275,17 +277,26 @@ function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm md:p-8">
-      <h1 className="text-3xl font-bold text-slate-900">Checkout</h1>
-      <p className="mt-2 text-sm text-slate-500">Provide your delivery details and choose payment to place your order.</p>
+      <h1 className="text-3xl font-bold text-slate-900">{t("checkout_title", "Checkout")}</h1>
+      <p className="mt-2 text-sm text-slate-500">
+        {isHindi
+          ? "अपना डिलीवरी विवरण भरें और ऑर्डर दर्ज करने के लिए भुगतान का तरीका चुनें।"
+          : "Provide your delivery details and choose payment to place your order."}
+      </p>
 
       {/* Multi-farm notice */}
       {hasMultipleFarmers ? (
         <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900">
           <span className="text-xl">🚜</span>
           <div>
-            <p className="font-bold">Multi-Farm Order</p>
+            <p className="font-bold">{t("checkout_multi_farm_title", "Multi-Farm Order")}</p>
             <p className="mt-0.5 text-xs text-emerald-700">
-              Your cart has items from {farmerIds.size} different farms. They will be automatically split into individual orders so each farmer can fulfill and deliver their fresh produce directly to you.
+              {isHindi
+                ? `आपके थैले में ${farmerIds.size} विभिन्न खेतों की ताज़ा फसलें हैं। इन्हें अलग-अलग ऑर्डर में विभाजित किया जाएगा ताकि प्रत्येक किसान अपनी उपज सीधे आप तक पहुंचा सके।`
+                : t(
+                    "checkout_multi_farm_desc",
+                    "Your cart has items from multiple farms. They will be automatically split so each farmer fulfills their produce directly to you."
+                  )}
             </p>
           </div>
         </div>
@@ -293,21 +304,21 @@ function CheckoutPage() {
 
       {/* Order Summary Grouped by Farm */}
       <div className="mt-6 space-y-5">
-        <h2 className="text-base font-bold text-slate-900">Items by Farm</h2>
+        <h2 className="text-base font-bold text-slate-900">{t("checkout_items_by_farm", "Items by Farm")}</h2>
         {Object.entries(itemsByFarm).map(([farmName, farmItems]) => (
           <div key={farmName} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
             <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2">
               <span className="text-base">🏡</span>
               <p className="font-semibold text-slate-800">{farmName}</p>
               <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                {farmItems.length} {farmItems.length === 1 ? "item" : "items"}
+                {farmItems.length} {farmItems.length === 1 ? (isHindi ? "फसल" : "item") : (isHindi ? "फसलें" : "items")}
               </span>
             </div>
             <div className="mt-3 space-y-2">
               {farmItems.map((item) => (
                 <div key={item._id} className="flex items-center justify-between text-sm">
                   <div>
-                    <span className="font-medium text-slate-800">{item.name}</span>
+                    <span className="font-medium text-slate-800">{translateProduceName(item.name, isHindi)}</span>
                     <span className="ml-2 text-xs text-slate-500">
                       ({item.cartQuantity} × Rs. {item.price})
                     </span>
@@ -327,20 +338,22 @@ function CheckoutPage() {
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
           <span className="text-lg">📍</span>
           <div>
-            <h2 className="font-bold text-slate-900">Delivery Address</h2>
-            <p className="text-xs text-slate-500">Farmers need your destination details for doorstep delivery</p>
+            <h2 className="font-bold text-slate-900">{t("checkout_delivery_details", "Delivery Address & Contact")}</h2>
+            <p className="text-xs text-slate-500">
+              {isHindi ? "घर तक डिलीवरी के लिए किसानों को आपका सही पता चाहिए" : "Farmers need your destination details for doorstep delivery"}
+            </p>
           </div>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              Street / House / Flat Address *
+              {t("checkout_street", "Street / Colony / Landmark")} *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. House #14, Green Valley Road, Sector 4"
+              placeholder={isHindi ? "मकान नं., गली, मोहल्ला, कॉलोनी, लैंडमार्क..." : "e.g. House #14, Green Valley Road, Sector 4"}
               value={deliveryAddress.street}
               onChange={(e) => setDeliveryAddress({ ...deliveryAddress, street: e.target.value })}
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
@@ -349,12 +362,12 @@ function CheckoutPage() {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              City / District *
+              {t("checkout_city", "City / Town")} *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Pune, Nashik, Bengaluru"
+              placeholder={isHindi ? "उदा. कानपुर, लखनऊ, दिल्ली..." : "e.g. Pune, Nashik, Bengaluru"}
               value={deliveryAddress.city}
               onChange={(e) => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })}
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
@@ -363,13 +376,13 @@ function CheckoutPage() {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              Postal Pincode *
+              {t("checkout_pincode", "Pincode")} *
             </label>
             <input
               type="text"
               required
               maxLength={10}
-              placeholder="e.g. 411001"
+              placeholder="e.g. 209204"
               value={deliveryAddress.pincode}
               onChange={(e) => setDeliveryAddress({ ...deliveryAddress, pincode: e.target.value })}
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
@@ -378,7 +391,7 @@ function CheckoutPage() {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              Contact Phone Number *
+              {t("checkout_contact_phone", "Contact Calling Number")} *
             </label>
             <input
               type="tel"
@@ -404,14 +417,14 @@ function CheckoutPage() {
                 }
                 className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>💬 Same as my WhatsApp number</span>
+              <span>💬 {t("profile_whatsapp_same", "Same as my WhatsApp number")}</span>
             </label>
           </div>
 
           {!deliveryAddress.isWhatsappSameAsPhone && (
             <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-emerald-950">
-                Alternate WhatsApp Number (For Live Order & Dispatch Updates) *
+                {t("checkout_whatsapp_phone", "WhatsApp Number (for live harvest alerts)")} *
               </label>
               <input
                 type="tel"
@@ -422,7 +435,9 @@ function CheckoutPage() {
                 className="mt-1 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
               />
               <p className="mt-1 text-[11px] text-emerald-700">
-                Order confirmation, farm acceptance, and doorstep delivery alerts will be delivered directly to this WhatsApp number.
+                {isHindi
+                  ? "ऑर्डर की पुष्टि, किसान द्वारा स्वीकृति, और डिलीवरी अलर्ट सीधे इस व्हाट्सएप नंबर पर भेजे जाएंगे।"
+                  : "Order confirmation, farm acceptance, and doorstep delivery alerts will be delivered directly to this WhatsApp number."}
               </p>
             </div>
           )}
@@ -430,13 +445,28 @@ function CheckoutPage() {
           {/* Preferred Harvest & Delivery Window */}
           <div className="sm:col-span-2 pt-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Preferred Harvest & Delivery Window *
+              {t("checkout_slot_title", "Choose Harvest / Delivery Slot")} *
             </label>
             <div className="mt-2 grid gap-2.5 sm:grid-cols-3">
               {[
-                { id: "Morning Harvest (7:00 AM - 10:00 AM)", icon: "🌅", title: "Morning Harvest", desc: "7:00 AM - 10:00 AM" },
-                { id: "Evening Fresh (4:00 PM - 7:00 PM)", icon: "🌇", title: "Evening Fresh", desc: "4:00 PM - 7:00 PM" },
-                { id: "Standard Any-Time (Within 24 Hours)", icon: "⚡", title: "Standard Slot", desc: "Within 24 Hours" },
+                {
+                  id: "Morning Harvest (7:00 AM - 10:00 AM)",
+                  icon: "🌅",
+                  title: isHindi ? "सुबह की ताज़ा तुड़ाई" : "Morning Harvest",
+                  desc: "7:00 AM - 10:00 AM",
+                },
+                {
+                  id: "Evening Fresh (4:00 PM - 7:00 PM)",
+                  icon: "🌇",
+                  title: isHindi ? "शाम की ताज़ा डिलीवरी" : "Evening Fresh",
+                  desc: "4:00 PM - 7:00 PM",
+                },
+                {
+                  id: "Standard Any-Time (Within 24 Hours)",
+                  icon: "⚡",
+                  title: isHindi ? "मानक डिलीवरी" : "Standard Slot",
+                  desc: isHindi ? "24 घंटे के भीतर" : "Within 24 Hours",
+                },
               ].map((slot) => {
                 const isSelected = deliveryAddress.deliverySlot === slot.id;
                 return (
@@ -461,11 +491,11 @@ function CheckoutPage() {
 
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              Delivery Notes / Instructions (Optional)
+              {t("checkout_delivery_notes_label", "Delivery Notes / Instructions (Optional)")}
             </label>
             <input
               type="text"
-              placeholder="e.g. Landmark near water tank, call before arriving"
+              placeholder={t("checkout_delivery_notes_placeholder", "e.g. Landmark near water tank, call before arriving")}
               value={deliveryAddress.notes}
               onChange={(e) => setDeliveryAddress({ ...deliveryAddress, notes: e.target.value })}
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
@@ -477,14 +507,14 @@ function CheckoutPage() {
       {/* Payable Subtotal */}
       <div className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-emerald-900">Total payable</span>
+          <span className="text-sm font-medium text-emerald-900">{t("cart_total", "Total payable")}</span>
           <span className="text-2xl font-bold text-emerald-800">Rs. {subtotal.toFixed(2)}</span>
         </div>
       </div>
 
       {/* Payment Selection */}
       <div className="mt-6 space-y-3">
-        <p className="font-semibold text-slate-900">Select Payment Method</p>
+        <p className="font-semibold text-slate-900">{t("checkout_payment_mode", "Select Payment Method")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label
             className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
@@ -502,7 +532,7 @@ function CheckoutPage() {
               className="text-emerald-600 focus:ring-emerald-500"
             />
             <div>
-              <p className="font-bold">Online Payment (Razorpay)</p>
+              <p className="font-bold">{t("checkout_pay_online", "Online Payment (Razorpay)")}</p>
               <p className="text-xs text-slate-500">Cards, UPI, NetBanking, Wallets</p>
             </div>
           </label>
@@ -523,8 +553,8 @@ function CheckoutPage() {
               className="text-emerald-600 focus:ring-emerald-500"
             />
             <div>
-              <p className="font-bold">Cash on Delivery (COD)</p>
-              <p className="text-xs text-slate-500">Pay directly when delivered</p>
+              <p className="font-bold">{t("checkout_pay_cod", "Cash on Delivery (COD)")}</p>
+              <p className="text-xs text-slate-500">{isHindi ? "डिलीवरी मिलने पर नकद दें" : "Pay directly when delivered"}</p>
             </div>
           </label>
         </div>
@@ -541,11 +571,11 @@ function CheckoutPage() {
         >
           {placingOrder
             ? paymentMethod === "cod"
-              ? "Placing order..."
-              : "Opening payment..."
+              ? t("checkout_placing_order", "Placing order...")
+              : t("checkout_opening_payment", "Opening payment...")
             : paymentMethod === "cod"
-            ? "Place Cash on Delivery Order"
-            : `Pay Rs. ${subtotal.toFixed(2)} with Razorpay`}
+            ? (isHindi ? "कैश ऑन डिलीवरी ऑर्डर दर्ज करें" : "Place Cash on Delivery Order")
+            : (isHindi ? `Razorpay से ₹${subtotal.toFixed(2)} का ऑनलाइन भुगतान करें` : `Pay Rs. ${subtotal.toFixed(2)} with Razorpay`)}
         </button>
       </div>
     </div>

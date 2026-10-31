@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import api, { getApiErrorMessage } from "../../services/api";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 
 function ProfilePage() {
   const { user, updateUser } = useAuth();
+  const { t, isHindi } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -198,7 +200,7 @@ function ProfilePage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading profile details..." />;
+    return <LoadingSpinner label={isHindi ? "प्रोफ़ाइल विवरण लोड हो रहा है..." : "Loading profile details..."} />;
   }
 
   const roleBadgeColor =
@@ -219,9 +221,9 @@ function ProfilePage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black text-slate-900">{formData.storeName || "User Account"}</h1>
+                <h1 className="text-2xl font-black text-slate-900">{formData.storeName || (isHindi ? "उपयोगकर्ता खाता" : "User Account")}</h1>
                 <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${roleBadgeColor}`}>
-                  {stats.role}
+                  {stats.role === "farmer" ? (isHindi ? "किसान" : "FARMER") : stats.role === "admin" ? (isHindi ? "एडमिन" : "ADMIN") : (isHindi ? "ग्राहक" : "CUSTOMER")}
                 </span>
               </div>
               <p className="mt-1 text-sm text-slate-500">{formData.email}</p>
@@ -231,11 +233,11 @@ function ProfilePage() {
           {stats.role === "farmer" && (
             <div className="flex items-center gap-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase">Farm Rating</p>
+                <p className="text-xs font-bold text-slate-400 uppercase">{t("profile_farm_rating", "Farm Rating")}</p>
                 <p className="text-lg font-black text-emerald-700">★ {stats.averageRating.toFixed(1)} / 5.0</p>
               </div>
               <div className="border-l border-slate-200 pl-4">
-                <p className="text-xs font-bold text-slate-400 uppercase">Reviews</p>
+                <p className="text-xs font-bold text-slate-400 uppercase">{t("profile_reviews", "Reviews")}</p>
                 <p className="text-lg font-black text-slate-900">{stats.reviewCount}</p>
               </div>
             </div>
@@ -258,10 +260,10 @@ function ProfilePage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xl">🛡️</span>
-                <h2 className="text-lg font-bold text-slate-900">Grower Verification Badge</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t("profile_grower_verification", "Grower Verification Badge")}</h2>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Verified farmers receive a blue "Verified Farm" badge on product cards to build buyer trust.
+                {t("profile_grower_verification_desc", "Verified farmers receive a blue 'Verified Farm' badge on product cards to build buyer trust.")}
               </p>
             </div>
             <div>
@@ -276,49 +278,61 @@ function ProfilePage() {
                     : "border-slate-300 bg-slate-100 text-slate-700"
                 }`}
               >
-                <span>{verification.isVerifiedFarmer ? "🛡️ Verified Grower" : verification.verificationStatus}</span>
+                <span>
+                  {verification.isVerifiedFarmer
+                    ? t("profile_verified_grower", "🛡️ Verified Grower")
+                    : verification.verificationStatus === "pending"
+                    ? t("profile_under_review", "Verification Under Review")
+                    : verification.verificationStatus === "rejected"
+                    ? (isHindi ? "अस्वीकृत" : "Rejected")
+                    : t("profile_unverified", "Unverified")}
+                </span>
               </span>
             </div>
           </div>
 
           {verification.isVerifiedFarmer ? (
             <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-xs font-semibold text-emerald-900">
-              <p className="font-bold">✨ Your Farm is Verified</p>
+              <p className="font-bold">{isHindi ? "✨ आपका खेत सत्यापित है" : "✨ Your Farm is Verified"}</p>
               <p className="mt-1">
-                Your farm credentials have been verified by platform administrators. All your product listings proudly feature the Verified Local Grower shield badge.
+                {isHindi
+                  ? "आपके क्रेडेंशियल्स प्लेटफॉर्म व्यवस्थापक द्वारा सत्यापित किए जा चुके हैं। आपकी सभी उत्पाद लिस्टिंग्स पर सत्यापित किसान बैज प्रदर्शित है।"
+                  : "Your farm credentials have been verified by platform administrators. All your product listings proudly feature the Verified Local Grower shield badge."}
               </p>
             </div>
           ) : verification.verificationStatus === "pending" ? (
             <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-xs font-semibold text-amber-900">
-              <p className="font-bold">⏳ Verification Under Review</p>
+              <p className="font-bold">{isHindi ? "⏳ सत्यापन समीक्षाधीन है" : "⏳ Verification Under Review"}</p>
               <p className="mt-1">
-                Your credentials have been submitted and are being reviewed by administrators. Once approved, the Verified Grower badge will appear on your store.
+                {isHindi
+                  ? "आपके दस्तावेज़ जमा हो चुके हैं और व्यवस्थापक द्वारा समीक्षा की जा रही है। अनुमोदन के बाद आपकी प्रोफ़ाइल पर सत्यापित किसान बैज दिखने लगेगा।"
+                  : "Your credentials have been submitted and are being reviewed by administrators. Once approved, the Verified Grower badge will appear on your store."}
               </p>
             </div>
           ) : (
             <form onSubmit={handleVerifyFarmerSubmit} className="mt-4 space-y-4">
-              <p className="text-xs font-bold text-slate-700">Submit Land Record or Kisan Credit Card for Verification:</p>
+              <p className="text-xs font-bold text-slate-700">{t("profile_submit_kyc_title", "Submit Land Record or Kisan Credit Card for Verification:")}</p>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Document Type *
+                    {t("profile_doc_type", "Document Type")} *
                   </label>
                   <select
                     value={verification.docType}
                     onChange={(e) => setVerification({ ...verification, docType: e.target.value })}
                     className="mt-1.5 w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none"
                   >
-                    <option value="Kisan Credit Card (KCC)">Kisan Credit Card (KCC)</option>
-                    <option value="Land Record (7/12 Extract / Patta)">Land Record (7/12 Extract / Patta)</option>
-                    <option value="Organic Farming Certificate">Organic Farming Certificate</option>
-                    <option value="APMC Mandi Trader / Farmer Pass">APMC Mandi Farmer Pass</option>
+                    <option value="Kisan Credit Card (KCC)">{isHindi ? "किसान क्रेडिट कार्ड (KCC)" : "Kisan Credit Card (KCC)"}</option>
+                    <option value="Land Record (7/12 Extract / Patta)">{isHindi ? "खतौनी / ज़मीन का पर्चा (Patta / 7/12)" : "Land Record (7/12 Extract / Patta)"}</option>
+                    <option value="Organic Farming Certificate">{isHindi ? "जैविक कृषि प्रमाण पत्र" : "Organic Farming Certificate"}</option>
+                    <option value="APMC Mandi Trader / Farmer Pass">{isHindi ? "मंडी पास / किसान कार्ड" : "APMC Mandi Trader / Farmer Pass"}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Registration / Certificate Number *
+                    {t("profile_doc_number", "Registration / Certificate Number")} *
                   </label>
                   <input
                     type="text"
@@ -332,7 +346,7 @@ function ProfilePage() {
 
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Document Image URL / Cloud Link (Optional)
+                    {t("profile_doc_url", "Document Image URL / Cloud Link (Optional)")}
                   </label>
                   <input
                     type="text"
@@ -350,7 +364,7 @@ function ProfilePage() {
                   disabled={submittingKyc}
                   className="rounded-2xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-60"
                 >
-                  {submittingKyc ? "Submitting..." : "Submit for Verification"}
+                  {submittingKyc ? (isHindi ? "जमा किया जा रहा है..." : "Submitting...") : t("profile_submit_btn", "Submit for Verification")}
                 </button>
               </div>
             </form>
@@ -362,15 +376,15 @@ function ProfilePage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Personal Details */}
         <section className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-bold text-slate-900">Personal & Store Information</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t("profile_personal_title", "Personal & Store Information")}</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Keep your contact details up to date for smooth buyer-farmer communication.
+            {t("profile_personal_desc", "Keep your contact details up to date for smooth buyer-farmer communication.")}
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                {stats.role === "farmer" ? "Farm / Store Name" : "Display Name"} *
+                {stats.role === "farmer" ? t("profile_store_name", "Farm / Store Name") : t("profile_display_name", "Display Name")} *
               </label>
               <input
                 type="text"
@@ -383,7 +397,7 @@ function ProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Phone Number *
+                {t("profile_phone", "Phone Number")} *
               </label>
               <input
                 type="tel"
@@ -408,13 +422,13 @@ function ProfilePage() {
                   }
                   className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <span>💬 WhatsApp number is the same as my calling phone number</span>
+                <span>💬 {t("profile_whatsapp_same", "WhatsApp number is the same as my calling phone number")}</span>
               </label>
 
               {!formData.isWhatsappSameAsPhone && (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
                   <label className="block text-xs font-bold uppercase tracking-wider text-emerald-950">
-                    Alternate WhatsApp Number (For Automated Order & Dispatch Updates)
+                    {t("profile_whatsapp_alt", "Alternate WhatsApp Number (For Automated Order & Dispatch Updates)")}
                   </label>
                   <input
                     type="tel"
@@ -424,7 +438,7 @@ function ProfilePage() {
                     className="mt-1.5 w-full rounded-xl border border-emerald-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none"
                   />
                   <p className="mt-1 text-[11px] text-emerald-700">
-                    All automated order placement, status changes, and dispatch alerts will be sent here.
+                    {isHindi ? "सभी स्वचालित ऑर्डर अलर्ट और डिलीवरी की जानकारी इस नंबर पर भेजी जाएगी।" : "All automated order placement, status changes, and dispatch alerts will be sent here."}
                   </p>
                 </div>
               )}
@@ -432,7 +446,7 @@ function ProfilePage() {
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Email Address
+                {t("profile_email", "Email Address")}
               </label>
               <input
                 type="email"
@@ -440,7 +454,7 @@ function ProfilePage() {
                 value={formData.email}
                 className="mt-1.5 w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500"
               />
-              <p className="mt-1 text-[11px] text-slate-400">Account login email cannot be changed.</p>
+              <p className="mt-1 text-[11px] text-slate-400">{t("profile_email_locked", "Account login email cannot be changed.")}</p>
             </div>
           </div>
         </section>
@@ -449,9 +463,9 @@ function ProfilePage() {
         <section className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Location & Coordinates</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t("profile_location_title", "Location & Coordinates")}</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Coordinates are used for radius filtering, farm distance calculations, and delivery proximity.
+                {t("profile_location_desc", "Coordinates are used for radius filtering, farm distance calculations, and delivery proximity.")}
               </p>
             </div>
             <button
@@ -461,14 +475,14 @@ function ProfilePage() {
               className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
             >
               <span>📍</span>
-              {geoLocating ? "Detecting..." : "Detect Current GPS"}
+              {geoLocating ? t("profile_detecting", "Detecting...") : t("profile_detect_gps", "Detect Current GPS")}
             </button>
           </div>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Latitude
+                {t("profile_latitude", "Latitude")}
               </label>
               <input
                 type="number"
@@ -482,7 +496,7 @@ function ProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Longitude
+                {t("profile_longitude", "Longitude")}
               </label>
               <input
                 type="number"
@@ -498,15 +512,15 @@ function ProfilePage() {
 
         {/* Change Password (Optional) */}
         <section className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-bold text-slate-900">Security & Password</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t("profile_security_title", "Security & Password")}</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Leave blank if you do not wish to change your current password.
+            {t("profile_security_desc", "Leave blank if you do not wish to change your current password.")}
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Current Password
+                {t("profile_current_password", "Current Password")}
               </label>
               <input
                 type="password"
@@ -519,7 +533,7 @@ function ProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                New Password
+                {t("profile_new_password", "New Password")}
               </label>
               <input
                 type="password"
@@ -532,7 +546,7 @@ function ProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Confirm New Password
+                {t("profile_confirm_password", "Confirm New Password")}
               </label>
               <input
                 type="password"
@@ -552,7 +566,7 @@ function ProfilePage() {
             disabled={saving}
             className="rounded-2xl bg-emerald-600 px-8 py-3.5 font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-60"
           >
-            {saving ? "Saving Changes..." : "Save Profile Changes"}
+            {saving ? t("profile_saving_btn", "Saving Changes...") : t("profile_save_btn", "Save Profile Changes")}
           </button>
         </div>
       </form>
