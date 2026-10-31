@@ -191,6 +191,19 @@ const createOrder = asyncHandler(async (req, res) => {
     });
 
     emitToUser(order.farmer, "notification:new", farmerNotification);
+    emitToUser(order.farmer, "order:new", {
+      _id: order._id,
+      customer: {
+        storeName: req.user.storeName,
+        phone: req.user.phone,
+        email: req.user.email,
+      },
+      items: order.items,
+      totalPrice: order.totalPrice,
+      deliveryAddress: order.deliveryAddress,
+      status: order.status,
+      createdAt: order.createdAt,
+    });
   }
 
   await Order.populate(orders, { path: "farmer", select: "storeName phone whatsappPhone email" });

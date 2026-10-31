@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import MarketPriceBadge from "../../components/MarketPriceBadge";
 import WeatherWidget from "../../components/WeatherWidget";
+import VoiceOrderAssistant from "../../components/VoiceOrderAssistant";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
@@ -72,6 +73,30 @@ function FarmerDashboardPage() {
     ? (reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
     : user?.averageRating || null;
 
+  const handleVoiceAccept = async (order) => {
+    if (!order.isDemo) {
+      try {
+        await api.put(`/orders/status`, { orderId: order._id, status: "accepted" });
+        const { data: orderData } = await api.get("/orders/received");
+        setOrders(orderData.orders || []);
+      } catch (err) {
+        console.warn("Voice accept update error:", err);
+      }
+    }
+  };
+
+  const handleVoiceReject = async (order) => {
+    if (!order.isDemo) {
+      try {
+        await api.put(`/orders/status`, { orderId: order._id, status: "rejected" });
+        const { data: orderData } = await api.get("/orders/received");
+        setOrders(orderData.orders || []);
+      } catch (err) {
+        console.warn("Voice reject update error:", err);
+      }
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner label={isHindi ? "डैशबोर्ड लोड हो रहा है..." : "Loading dashboard..."} />;
   }
@@ -110,6 +135,13 @@ function FarmerDashboardPage() {
           </Link>
         </div>
       </section>
+
+      {/* Interactive Voice IVR Order Assistant */}
+      <VoiceOrderAssistant
+        availableOrders={orders}
+        onOrderAccepted={handleVoiceAccept}
+        onOrderRejected={handleVoiceReject}
+      />
 
       <ErrorAlert message={error} />
 

@@ -5,6 +5,7 @@ import EmptyState from "../../components/EmptyState";
 import ErrorAlert from "../../components/ErrorAlert";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import DeliveryRouteMap from "../../components/DeliveryRouteMap";
+import VoiceOrderAssistant from "../../components/VoiceOrderAssistant";
 import api, { getApiErrorMessage } from "../../services/api";
 import { updateOrderStatus } from "../../services/orderService";
 import { formatWhatsAppUrl, buildFarmerToCustomerStatusText } from "../../utils/whatsapp";
@@ -71,6 +72,21 @@ function FarmerOrdersPage() {
           {t("farmer_orders_subtitle", "Accept, reject, deliver, and chat with customers from one queue.")}
         </p>
       </div>
+
+      {/* Interactive Voice IVR Order Assistant */}
+      <VoiceOrderAssistant
+        availableOrders={orders}
+        onOrderAccepted={(order) => {
+          if (!order.isDemo) {
+            handleUpdateStatus(order._id, "accepted");
+          }
+        }}
+        onOrderRejected={(order) => {
+          if (!order.isDemo) {
+            handleUpdateStatus(order._id, "rejected");
+          }
+        }}
+      />
 
       <ErrorAlert message={error} />
 
