@@ -139,10 +139,59 @@ export default function VoiceOrderAssistant({ onOrderAccepted, onOrderRejected, 
     return null;
   };
 
+  // Accept Action
+  const handleAccept = useCallback(
+    async (order) => {
+      setStage("confirmed");
+      setStatusMessage(isHindi ? "✅ ऑर्डर स्वीकार कर लिया गया है!" : "✅ Order Accepted!");
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      const confirmSpeech = isHindi
+        ? "ऑर्डर स्वीकार कर लिया गया है। कृपया ताज़ा तुड़ाई व पैकिंग शुरू करें।"
+        : "Order accepted successfully! Please start harvest and packaging.";
+
+      speakText(confirmSpeech, () => {
+        setTimeout(() => {
+          cancelVoiceFlow();
+        }, 2500);
+      });
+
+      if (onOrderAccepted && order) {
+        onOrderAccepted(order);
+      }
+    },
+    [isHindi, speakText, cancelVoiceFlow, onOrderAccepted]
+  );
+
+  // Reject Action
+  const handleReject = useCallback(
+    async (order) => {
+      setStage("rejected");
+      setStatusMessage(isHindi ? "❌ ऑर्डर अस्वीकार कर दिया गया है।" : "❌ Order Rejected.");
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      const rejectSpeech = isHindi ? "ऑर्डर रद्द कर दिया गया है।" : "Order has been declined.";
+
+      speakText(rejectSpeech, () => {
+        setTimeout(() => {
+          cancelVoiceFlow();
+        }, 2500);
+      });
+
+      if (onOrderRejected && order) {
+        onOrderRejected(order);
+      }
+    },
+    [isHindi, speakText, cancelVoiceFlow, onOrderRejected]
+  );
+
   // Start Voice Listening loop
   const startListening = useCallback(
     (order) => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition =
+        typeof window !== "undefined"
+          ? window.SpeechRecognition || window.webkitSpeechRecognition
+          : null;
       if (!SpeechRecognition) {
         setStatusMessage(
           isHindi
@@ -221,7 +270,7 @@ export default function VoiceOrderAssistant({ onOrderAccepted, onOrderRejected, 
         setStage("listening");
       }
     },
-    [isHindi]
+    [isHindi, handleAccept, handleReject]
   );
 
   // Full Order Announcement workflow
@@ -255,52 +304,6 @@ export default function VoiceOrderAssistant({ onOrderAccepted, onOrderRejected, 
       }, 500);
     },
     [isEnabled, isHindi, user?.storeName, speakText, startListening]
-  );
-
-  // Accept Action
-  const handleAccept = useCallback(
-    async (order) => {
-      setStage("confirmed");
-      setStatusMessage(isHindi ? "✅ ऑर्डर स्वीकार कर लिया गया है!" : "✅ Order Accepted!");
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-      const confirmSpeech = isHindi
-        ? "ऑर्डर स्वीकार कर लिया गया है। कृपया ताज़ा तुड़ाई व पैकिंग शुरू करें।"
-        : "Order accepted successfully! Please start harvest and packaging.";
-
-      speakText(confirmSpeech, () => {
-        setTimeout(() => {
-          cancelVoiceFlow();
-        }, 2500);
-      });
-
-      if (onOrderAccepted && order) {
-        onOrderAccepted(order);
-      }
-    },
-    [isHindi, speakText, cancelVoiceFlow, onOrderAccepted]
-  );
-
-  // Reject Action
-  const handleReject = useCallback(
-    async (order) => {
-      setStage("rejected");
-      setStatusMessage(isHindi ? "❌ ऑर्डर अस्वीकार कर दिया गया है।" : "❌ Order Rejected.");
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-      const rejectSpeech = isHindi ? "ऑर्डर रद्द कर दिया गया है।" : "Order has been declined.";
-
-      speakText(rejectSpeech, () => {
-        setTimeout(() => {
-          cancelVoiceFlow();
-        }, 2500);
-      });
-
-      if (onOrderRejected && order) {
-        onOrderRejected(order);
-      }
-    },
-    [isHindi, speakText, cancelVoiceFlow, onOrderRejected]
   );
 
   // Socket.IO Listener for Real-time New Orders

@@ -14,10 +14,15 @@ class TelephoneRinger {
   }
 
   init() {
+    if (typeof window === "undefined") return;
     if (!this.audioCtx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
-        this.audioCtx = new AudioCtx();
+        try {
+          this.audioCtx = new AudioCtx();
+        } catch (e) {
+          console.warn("AudioContext initialization warning:", e);
+        }
       }
     }
     if (this.audioCtx && this.audioCtx.state === "suspended") {
@@ -27,7 +32,7 @@ class TelephoneRinger {
 
   // Play a single ring burst (two telephone pulses: 440Hz + 480Hz)
   playRingBurst() {
-    if (!this.audioCtx) this.init();
+    this.init();
     if (!this.audioCtx) return;
 
     try {
@@ -44,26 +49,31 @@ class TelephoneRinger {
   }
 
   createDualTone(freq1, freq2, startTime, duration) {
-    const osc1 = this.audioCtx.createOscillator();
-    const osc2 = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
+    if (!this.audioCtx) return;
+    try {
+      const osc1 = this.audioCtx.createOscillator();
+      const osc2 = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
 
-    osc1.type = "sine";
-    osc2.type = "sine";
-    osc1.frequency.setValueAtTime(freq1, startTime);
-    osc2.frequency.setValueAtTime(freq2, startTime);
+      osc1.type = "sine";
+      osc2.type = "sine";
+      osc1.frequency.setValueAtTime(freq1, startTime);
+      osc2.frequency.setValueAtTime(freq2, startTime);
 
-    gain.gain.setValueAtTime(0.35, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+      gain.gain.setValueAtTime(0.35, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.audioCtx.destination);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(this.audioCtx.destination);
 
-    osc1.start(startTime);
-    osc2.start(startTime);
-    osc1.stop(startTime + duration);
-    osc2.stop(startTime + duration);
+      osc1.start(startTime);
+      osc2.start(startTime);
+      osc1.stop(startTime + duration);
+      osc2.stop(startTime + duration);
+    } catch (e) {
+      console.warn("Tone creation error:", e);
+    }
   }
 
   // Start continuous telephone ringing (repeats every 2.5 seconds)
@@ -127,6 +137,188 @@ export default function IncomingOrderRinger() {
   const recognitionRef = useRef(null);
   const seenOrderIdsRef = useRef(new Set());
   const initialLoadDoneRef = useRef(false);
+  const isAnsweringRef = useRef(false);
+  isAnsweringRef.current = isAnswering;
+
+  // Text-To-Speech announcement
+  const speakAnnouncement = useCallback((text) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "hi-IN";
+      utt.rate = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const hi = voices.find((v) => v.lang && v.lang.startsWith("hi")) || voices[0];
+      if (hi) utt.voice = hi;
+      window.speechSynthesis.speak(utt);
+    } catch (e) {
+      console.warn("TTS error:", e);
+    }
+  }, []);
+
+  // Stop Ringing & Speech
+  const stopAllRinging = useCallback(() => {
+    ringer.stop();
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {}
+      recognitionRef.current = null;
+    }
+    setIncomingOrder(null);
+    setIsAnswering(false);
+    setVoiceTranscript("");
+  }, []);
+
+  // Accept Order
+  const handleAccept = useCallback(
+    async (order) => {
+      if (!order || isAnsweringRef.current) return;
+      setIsAnswering(true);
+      ringer.stop();
+      ringer.playSuccessChime();
+
+      speakAnnouncement(
+        isHindi
+          ? "ऑर्डर स्वीकार कर लिया गया है। बधाई हो!"
+          : "Order accepted successfully!"
+      );
+
+      try {
+        if (!order.isDemo && order._id) {
+          await updateOrderStatus({ orderId: order._id, status: "accepted" });
+        }
+        setActionFeedback({
+          type: "success",
+          message: isHindi ? "✅ ऑर्डर स्वीकार हो गया है!" : "✅ Order Accepted!",
+        });
+        setTimeout(() => {
+          stopAllRinging();
+        }, 2000);
+      } catch (err) {
+        console.warn("Error updating order status:", err);
+        setActionFeedback({
+          type: "error",
+          message: isHindi ? "स्टेटस अपडेट करने में समस्या आई" : "Failed to update order status",
+        });
+        setTimeout(() => {
+          stopAllRinging();
+        }, 2500);
+      }
+    },
+    [isHindi, speakAnnouncement, stopAllRinging]
+  );
+
+  // Reject Order
+  const handleReject = useCallback(
+    async (order) => {
+      if (!order || isAnsweringRef.current) return;
+      setIsAnswering(true);
+      ringer.stop();
+
+      speakAnnouncement(isHindi ? "ऑर्डर रद्द कर दिया गया।" : "Order declined.");
+
+      try {
+        if (!order.isDemo && order._id) {
+          await updateOrderStatus({ orderId: order._id, status: "rejected" });
+        }
+        setActionFeedback({
+          type: "rejected",
+          message: isHindi ? "❌ ऑर्डर अस्वीकार कर दिया गया" : "❌ Order Declined",
+        });
+        setTimeout(() => {
+          stopAllRinging();
+        }, 2000);
+      } catch (err) {
+        console.warn("Error declining order:", err);
+        setTimeout(() => {
+          stopAllRinging();
+        }, 2000);
+      }
+    },
+    [isHindi, speakAnnouncement, stopAllRinging]
+  );
+
+  // Trigger Incoming Call Alert (Ringing + Modal + Speech)
+  const triggerIncomingCall = useCallback(
+    (order) => {
+      if (!order) return;
+      setIncomingOrder(order);
+      setActionFeedback(null);
+      setVoiceTranscript("");
+
+      // Start ringing out loud immediately!
+      try {
+        ringer.start();
+      } catch (e) {
+        console.warn("Ringer start error:", e);
+      }
+
+      // Announce order in Hindi after 1.2s of ringing
+      const customerName = order.customer?.storeName || (isHindi ? "ग्राहक" : "Customer");
+      const total = Number(order.totalPrice || order.total || 0).toFixed(0);
+      const itemsDesc = order.items
+        ?.map((it) => `${it.name || it.product?.name || "फसल"} (${it.quantity || 1})`)
+        .join(", ");
+
+      const speech = isHindi
+        ? `नया ऑर्डर आया है! ${customerName} से ${itemsDesc}, कुल ₹${total}। स्वीकार करने के लिए 'हाँ' बोलें या बटन दबाएं।`
+        : `New order from ${customerName} for ${itemsDesc}, total Rs. ${total}. Say Yes to accept.`;
+
+      setTimeout(() => {
+        speakAnnouncement(speech);
+      }, 1200);
+
+      // Start listening to microphone for "हाँ" / "ना"
+      const SpeechRecognition =
+        typeof window !== "undefined"
+          ? window.SpeechRecognition || window.webkitSpeechRecognition
+          : null;
+
+      if (SpeechRecognition) {
+        try {
+          const rec = new SpeechRecognition();
+          recognitionRef.current = rec;
+          rec.lang = "hi-IN";
+          rec.continuous = true;
+          rec.interimResults = true;
+
+          rec.onresult = (event) => {
+            let heard = "";
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              heard += event.results[i][0].transcript;
+            }
+            setVoiceTranscript(heard);
+            const lower = heard.toLowerCase();
+
+            // Affirmative
+            if (/(हाँ|हां|स्वीकार|करो|यस|yes|accept|ok|haan|sweekar)/i.test(lower)) {
+              try {
+                rec.stop();
+              } catch (e) {}
+              handleAccept(order);
+            } else if (/(नहीं|ना|रद्द|नो|no|reject|cancel|nahi|na)/i.test(lower)) {
+              try {
+                rec.stop();
+              } catch (e) {}
+              handleReject(order);
+            }
+          };
+
+          rec.start();
+        } catch (e) {
+          console.warn("Speech rec error:", e);
+        }
+      }
+    },
+    [isHindi, speakAnnouncement, handleAccept, handleReject]
+  );
 
   // 1. Initial seed of existing order IDs so we only ring for NEW incoming orders
   useEffect(() => {
@@ -179,8 +371,57 @@ export default function IncomingOrderRinger() {
     return () => clearInterval(interval);
   }, [token, user?.role, incomingOrder, triggerIncomingCall]);
 
-  // Auto-unlock AudioContext on any interaction with window
+  // 3. Real-time WebSocket connection to Render
   useEffect(() => {
+    if (!token || user?.role !== "farmer") return;
+
+    let socket;
+    try {
+      socket = io(getBackendBaseUrl(), {
+        auth: { token },
+        transports: ["websocket", "polling"],
+      });
+
+      socket.on("order:new", (order) => {
+        // Direct real dynamic order from customer checkout
+        if (order && !seenOrderIdsRef.current.has(String(order._id))) {
+          seenOrderIdsRef.current.add(String(order._id));
+          triggerIncomingCall(order);
+        }
+      });
+
+      socket.on("notification:new", async (notif) => {
+        if (notif?.type === "order" && notif?.metadata?.orderId && !incomingOrder) {
+          const idStr = String(notif.metadata.orderId);
+          if (!seenOrderIdsRef.current.has(idStr)) {
+            seenOrderIdsRef.current.add(idStr);
+            try {
+              const { data } = await api.get(`/orders/${idStr}`);
+              if (data?.order) {
+                triggerIncomingCall(data.order);
+              }
+            } catch (err) {
+              console.warn("Could not fetch real dynamic order:", err);
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.warn("Socket init error:", err);
+    }
+
+    return () => {
+      if (socket) {
+        try {
+          socket.disconnect();
+        } catch (e) {}
+      }
+    };
+  }, [token, user?.role, triggerIncomingCall, incomingOrder]);
+
+  // 4. Auto-unlock AudioContext on any interaction with window
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     const unlockAudio = () => {
       ringer.init();
     };
@@ -193,200 +434,6 @@ export default function IncomingOrderRinger() {
       window.removeEventListener("keydown", unlockAudio);
     };
   }, []);
-
-  // Text-To-Speech
-  const speakAnnouncement = useCallback((text) => {
-    if (!window.speechSynthesis) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = "hi-IN";
-      utt.rate = 1.0;
-      const voices = window.speechSynthesis.getVoices();
-      const hi = voices.find((v) => v.lang.startsWith("hi")) || voices[0];
-      if (hi) utt.voice = hi;
-      window.speechSynthesis.speak(utt);
-    } catch (e) {}
-  }, []);
-
-  // Stop Ringing & Speech
-  const stopAllRinging = useCallback(() => {
-    ringer.stop();
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch (e) {}
-      recognitionRef.current = null;
-    }
-    setIncomingOrder(null);
-    setIsAnswering(false);
-    setVoiceTranscript("");
-  }, []);
-
-  // Trigger Incoming Call Alert (Ringing + Screen + Speech)
-  const triggerIncomingCall = useCallback(
-    (order) => {
-      if (!order) return;
-      setIncomingOrder(order);
-      setActionFeedback(null);
-      setVoiceTranscript("");
-
-      // Start ringing out loud immediately!
-      ringer.start();
-
-      // Announce order in Hindi after 1 second of ringing
-      const customerName = order.customer?.storeName || (isHindi ? "ग्राहक" : "Customer");
-      const total = Number(order.totalPrice || order.total || 0).toFixed(0);
-      const itemsDesc = order.items
-        ?.map((it) => `${it.name || it.product?.name || "फसल"} (${it.quantity || 1})`)
-        .join(", ");
-
-      const speech = isHindi
-        ? `नया ऑर्डर आया है! ${customerName} से ${itemsDesc}, कुल ₹${total}। स्वीकार करने के लिए 'हाँ' बोलें या बटन दबाएं।`
-        : `New order from ${customerName} for ${itemsDesc}, total Rs. ${total}. Say Yes to accept.`;
-
-      setTimeout(() => {
-        speakAnnouncement(speech);
-      }, 1200);
-
-      // Start listening to microphone for "हाँ" / "ना"
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        try {
-          const rec = new SpeechRecognition();
-          recognitionRef.current = rec;
-          rec.lang = "hi-IN";
-          rec.continuous = true;
-          rec.interimResults = true;
-
-          rec.onresult = (event) => {
-            let heard = "";
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-              heard += event.results[i][0].transcript;
-            }
-            setVoiceTranscript(heard);
-            const lower = heard.toLowerCase();
-
-            // Affirmative
-            if (/(हाँ|हां|स्वीकार|करो|यस|yes|accept|ok|haan|sweekar)/i.test(lower)) {
-              rec.stop();
-              handleAccept(order);
-            } else if (/(नहीं|ना|रद्द|नो|no|reject|cancel|nahi|na)/i.test(lower)) {
-              rec.stop();
-              handleReject(order);
-            }
-          };
-
-          rec.start();
-        } catch (e) {
-          console.warn("Speech rec error:", e);
-        }
-      }
-    },
-    [isHindi, speakAnnouncement]
-  );
-
-  // Accept Order
-  const handleAccept = async (order) => {
-    setIsAnswering(true);
-    ringer.stop();
-    ringer.playSuccessChime();
-
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      speakAnnouncement(
-        isHindi
-          ? "ऑर्डर स्वीकार कर लिया गया है। बधाई हो!"
-          : "Order accepted successfully!"
-      );
-    }
-
-    try {
-      if (!order.isDemo && order._id) {
-        await updateOrderStatus({ orderId: order._id, status: "accepted" });
-      }
-      setActionFeedback({
-        type: "success",
-        message: isHindi ? "✅ ऑर्डर स्वीकार हो गया है!" : "✅ Order Accepted!",
-      });
-      setTimeout(() => {
-        stopAllRinging();
-      }, 2000);
-    } catch (err) {
-      console.warn("Error updating order status:", err);
-      setActionFeedback({
-        type: "error",
-        message: isHindi ? "स्टेटस अपडेट करने में समस्या आई" : "Failed to update order status",
-      });
-      setTimeout(() => {
-        stopAllRinging();
-      }, 2500);
-    }
-  };
-
-  // Reject Order
-  const handleReject = async (order) => {
-    setIsAnswering(true);
-    ringer.stop();
-
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      speakAnnouncement(isHindi ? "ऑर्डर रद्द कर दिया गया।" : "Order declined.");
-    }
-
-    try {
-      if (!order.isDemo && order._id) {
-        await updateOrderStatus({ orderId: order._id, status: "rejected" });
-      }
-      setActionFeedback({
-        type: "rejected",
-        message: isHindi ? "❌ ऑर्डर अस्वीकार कर दिया गया" : "❌ Order Declined",
-      });
-      setTimeout(() => {
-        stopAllRinging();
-      }, 2000);
-    } catch (err) {
-      console.warn("Error declining order:", err);
-      setTimeout(() => {
-        stopAllRinging();
-      }, 2000);
-    }
-  };
-
-  // Listen to incoming real-time socket events
-  useEffect(() => {
-    if (!token || user?.role !== "farmer") return;
-
-    const socket = io(getBackendBaseUrl(), {
-      auth: { token },
-    });
-
-    socket.on("order:new", (order) => {
-      // Direct real dynamic order from customer checkout
-      triggerIncomingCall(order);
-    });
-
-    socket.on("notification:new", async (notif) => {
-      if (notif.type === "order" && notif.metadata?.orderId && !incomingOrder) {
-        try {
-          // Fetch the 100% REAL dynamic order from MongoDB by orderId
-          const { data } = await api.get(`/orders/${notif.metadata.orderId}`);
-          if (data?.order) {
-            triggerIncomingCall(data.order);
-          }
-        } catch (err) {
-          console.warn("Could not fetch real dynamic order:", err);
-        }
-      }
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, user?.role, triggerIncomingCall, incomingOrder]);
 
   // Dynamic Trigger for testing using real database records
   const triggerDynamicRing = async () => {
@@ -429,8 +476,38 @@ export default function IncomingOrderRinger() {
         });
         return;
       }
+
+      // 3. Fallback preview
+      triggerIncomingCall({
+        _id: "demo_" + Date.now(),
+        isDemo: true,
+        customer: {
+          storeName: "Rahul Pal (Verified Buyer)",
+          phone: "+91 98765 43210",
+        },
+        items: [{ name: isHindi ? "ताज़ा जैविक टमाटर" : "Organic Tomatoes", quantity: 5, price: 40 }],
+        totalPrice: 200,
+        deliveryAddress: {
+          city: user?.location?.city || "Varanasi",
+          deliverySlot: "Morning Harvest (7:00 AM - 10:00 AM)",
+        },
+      });
     } catch (err) {
       console.warn("Could not load dynamic data from database:", err);
+      triggerIncomingCall({
+        _id: "demo_" + Date.now(),
+        isDemo: true,
+        customer: {
+          storeName: "Rahul Pal",
+          phone: "+91 98765 43210",
+        },
+        items: [{ name: isHindi ? "ताज़ा गेहूं" : "Fresh Wheat", quantity: 20, price: 35 }],
+        totalPrice: 700,
+        deliveryAddress: {
+          city: "Regional Market",
+          deliverySlot: "Standard Delivery",
+        },
+      });
     }
   };
 
@@ -568,4 +645,3 @@ export default function IncomingOrderRinger() {
     </>
   );
 }
-
